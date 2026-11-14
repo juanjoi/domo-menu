@@ -4,22 +4,15 @@ Pasos hasta la primera versión, en orden. Cada fase termina con algo que se pue
 
 ## 0. Cerrar decisiones
 
-Antes de escribir código, cerrar las decisiones pendientes, agrupadas por la pieza a la que afectan:
-
-| Pieza | Decisiones |
-| --- | --- |
-| General | P-07 idioma del código, P-16 versión de Traefik, P-17 licencia |
-| Script | P-05 móvil, P-06 y P-13 posición del botón, P-08 qué se muestra, P-14 orden y enlaces |
-
-D-08 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`, y la imagen del servicio lleva una copia de ese código para dejarla en el volumen de Traefik.
+Hecho: todas las decisiones están en [decisiones](decisiones.md), de D-08 a D-23. D-08 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`, y la imagen del servicio lleva una copia de ese código para dejarla en el volumen de Traefik.
 
 ## 1. Esqueleto y entorno de pruebas
 
-- Licencia, `.gitignore` y módulo de Go.
-- Entorno local con Docker Compose (RNF-09): Traefik en la versión fijada, el plugin cargado como plugin local y aplicaciones de prueba que cubran los casos difíciles:
+- Licencia GPL v3, `.gitignore` y módulo de Go (D-21, D-23).
+- Entorno local con Docker Compose (RNF-09): Traefik en la misma versión que el hub (D-22), el plugin cargado como plugin local y aplicaciones de prueba que cubran los casos difíciles:
   - una página sencilla;
   - una que comprime con gzip y otra con Brotli;
-  - una con CSP estricta;
+  - una con CSP estricta, también para imágenes;
   - una que pide fragmentos HTML;
   - una que incrusta otra en un iframe;
   - una con websockets y descargas grandes;
@@ -51,10 +44,10 @@ Resultado: el servicio devuelve la lista correcta del entorno local.
 
 - Botón pegado al borde, dentro de un Shadow DOM (RF-03, RNF-01).
 - Arrastre por todo el perímetro con ratón y dedo, pegándose al borde más cercano (RF-04).
-- Posición en una cookie del dominio común (RF-05, P-06, P-13).
-- Ventana con la lista, la aplicación actual marcada y enlaces construidos con el dominio de la página (RF-06, RF-09, RNF-08).
+- Posición en una cookie del dominio común (RF-05, D-18).
+- Ventana con la lista en orden alfabético, nombre y favicon con la inicial de reserva, la aplicación actual marcada y enlaces construidos con el dominio de la página (RF-06, RF-09, RNF-08, D-19, D-20).
 - Teclado, tamaño táctil y tema claro u oscuro (RNF-07).
-- No aparece en iframes (RF-12) ni en el móvil (RF-10, P-05).
+- No aparece en iframes (RF-12) ni en pantallas con el lado corto por debajo de 600 px (RF-10, D-17).
 - Si la lista no carga, no pinta nada y no deja errores que afecten a la aplicación (RNF-01).
 
 Resultado: el menú funciona en todas las aplicaciones de prueba, en escritorio y en tablet.
@@ -69,6 +62,6 @@ Después, en el repositorio de despliegue, añadir el middleware a las aplicacio
 
 ## Segunda iteración
 
-Categorías (RF-11), nombres legibles e iconos (P-08).
+Categorías (RF-11) y nombres legibles.
 
 [← Volver al README](../README.md)

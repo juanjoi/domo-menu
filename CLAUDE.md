@@ -2,7 +2,7 @@
 
 Menú común para todas las aplicaciones web del hub domótico. Traefik inserta un script en cada página HTML que sirve, y ese script pinta un botón flotante pegado al borde de la pantalla que abre la lista de aplicaciones. Repositorio público: no debe contener datos de ninguna casa concreta (nombres de servicios, dominios, IPs ni secretos).
 
-En fase de requisitos: antes de escribir código, leer `docs/requisitos.md`, `docs/decisiones.md` y `docs/plan.md`, y cerrar con el usuario las decisiones pendientes que afecten a lo que se va a construir.
+Antes de escribir código, leer `docs/requisitos.md`, `docs/decisiones.md` y `docs/plan.md`. El desarrollo sigue las fases del plan; una decisión nueva se cierra con el usuario y se anota antes de construirla.
 
 ## Convenciones
 

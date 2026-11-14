@@ -8,12 +8,12 @@
 | RF-02 | **Exclusiones.** Una aplicación puede no llevar el script, por ejemplo un gestor de contraseñas: basta con no ponerle el middleware. Entonces tampoco aparece en la lista (D-16). |
 | RF-03 | **Botón pegado al borde.** El menú es un botón flotante pegado a un lateral de la pantalla, por encima de la aplicación, que sigue en su sitio al hacer scroll. |
 | RF-04 | **Moverlo por el perímetro.** El botón se puede arrastrar, con ratón o con el dedo, a cualquier punto del perímetro de la pantalla, incluidas las esquinas, para que no tape nada de la aplicación. Al soltarlo se pega al borde más cercano: nunca queda separado del perímetro. |
-| RF-05 | **Recordar la posición.** La posición del botón se recuerda y es la misma en todas las aplicaciones. |
-| RF-06 | **Ventana de aplicaciones.** Al pulsar el botón se abre una ventana con todas las aplicaciones que llevan el menú, incluidas las de infraestructura como el propio Traefik o el panel de gestión si se les pone el middleware. Cada una es un enlace a su nombre, con el mismo dominio y esquema que la página actual. |
+| RF-05 | **Recordar la posición.** La posición del botón se recuerda y es la misma en todas las aplicaciones (D-18). |
+| RF-06 | **Ventana de aplicaciones.** Al pulsar el botón se abre una ventana con todas las aplicaciones que llevan el menú, incluidas las de infraestructura como el propio Traefik o el panel de gestión si se les pone el middleware. Cada una se muestra con el principio de su nombre y su icono (D-19), en orden alfabético, y es un enlace a su nombre, con el mismo dominio y esquema que la página actual, que se abre en la misma pestaña (D-20). |
 | RF-07 | **Lista automática.** La lista sale de las rutas de Traefik que usan el middleware del menú, incluidas las declaradas en ficheros y no solo las de etiquetas de Docker (D-16). Una aplicación nueva aparece al ponerle el middleware, sin darla de alta en el servicio. Cada aplicación aparece una sola vez aunque tenga varios routers (por ejemplo, el que redirige de http a https). Quedan fuera la propia ruta del menú, los routers TCP y UDP y las reglas sin un nombre reconocible, como las de solo `PathPrefix`. |
 | RF-08 | **Sin rutas técnicas.** Las rutas que no son aplicaciones, como la del propio menú, no aparecen. Para sacar una aplicación de la lista basta con quitarle el middleware (D-16). |
 | RF-09 | **Aplicación actual.** La ventana marca la aplicación en la que se está. |
-| RF-10 | **Dispositivos.** Aparece en escritorio y en tablet. En el móvil puede estorbar más que ayudar: por defecto no aparece, a falta de decidir si se puede activar. |
+| RF-10 | **Dispositivos.** Aparece en escritorio y en tablet, en cualquier orientación. En el móvil no aparece (D-17). |
 | RF-11 | **Categorías** (segunda iteración). Las aplicaciones se agrupan por categorías en la ventana. |
 | RF-12 | **Solo en la ventana principal.** Si la página está dentro de un iframe, el script no pinta nada, para que el menú no aparezca dos veces cuando una aplicación incrusta otra. |
 

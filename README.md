@@ -23,4 +23,8 @@ navegador ──► Traefik ──► aplicación
 | Ventana con todas las aplicaciones que llevan el menú | Pendiente |
 | Clasificar las aplicaciones por categorías | Segunda iteración |
 
-En fase de requisitos: ver [requisitos](docs/requisitos.md), [decisiones](docs/decisiones.md) y [plan](docs/plan.md).
+Requisitos y decisiones cerrados; el desarrollo sigue el [plan](docs/plan.md). Ver también [requisitos](docs/requisitos.md) y [decisiones](docs/decisiones.md).
+
+## Licencia
+
+GPL v3.
