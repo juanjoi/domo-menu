@@ -71,10 +71,9 @@ Después, en el repositorio de despliegue, añadir el middleware a las aplicacio
 
 ## Segunda iteración: categorías, nombres e iconos
 
-1. Cerrar P-18: catálogo de iconos.
-2. Servicio: reconocer las instancias del middleware por su tipo y leer su configuración (D-25); categorías de la configuración (D-27); iconos descargados y servidos bajo `/__menu/` (D-26). Añadir al entorno local aplicaciones con categoría, con nombre visible, con icono y sin nada.
-3. Script: ventana agrupada por categorías, con el nombre visible y el icono.
-4. Versión `v0.3.0` y, en el repositorio de despliegue, una instancia del middleware por aplicación.
-5. El panel de gestión muestra la misma lista (RF-15).
+1. Servicio: reconocer las instancias del middleware por su tipo y leer su configuración (D-25); categorías de la configuración (D-27); iconos de una carpeta montada, servidos bajo `/__menu/` (D-26). Añadir al entorno local aplicaciones con categoría, con nombre visible, con icono y sin nada.
+2. Script: ventana agrupada por categorías, con el nombre visible y el icono.
+3. Versión `v0.3.0` y, en el repositorio de despliegue, una instancia del middleware por aplicación y la carpeta de iconos, descargados de un catálogo libre.
+4. El panel de gestión muestra la misma lista (RF-15).
 
 [← Volver al README](../README.md)
