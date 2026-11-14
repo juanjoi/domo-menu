@@ -11,8 +11,8 @@ navegador ──► Traefik ──► aplicación
                  └─ /__menu/* en cualquier nombre ──► servicio domo-menu
 ```
 
-- **Plugin de Traefik:** inserta el script en las respuestas HTML. No toca la API, los vídeos ni los websockets de las aplicaciones.
-- **Servicio:** sirve el script y la lista de aplicaciones, que saca de Traefik. Se publica bajo `/__menu/` en todos los nombres, para que el script sea del mismo origen que la aplicación.
+- **Plugin de Traefik:** middleware que se añade a cada aplicación y que inserta el script en sus páginas HTML. No toca la API, los vídeos ni los websockets de las aplicaciones.
+- **Servicio:** sirve el script y la lista de aplicaciones que llevan el menú, que saca de la API de Traefik. Se publica bajo `/__menu/` en todos los nombres, para que el script sea del mismo origen que la aplicación.
 - **Script:** pinta el botón y la ventana del menú dentro de un Shadow DOM, sin afectar a la aplicación.
 
 ## Funciones
@@ -20,8 +20,7 @@ navegador ──► Traefik ──► aplicación
 | Función | Estado |
 | --- | --- |
 | Botón flotante pegado al borde, que se puede mover por todo el perímetro | Pendiente |
-| Ventana con todas las aplicaciones que sirve Traefik | Pendiente |
-| Ocultar aplicaciones de la lista | Pendiente |
+| Ventana con todas las aplicaciones que llevan el menú | Pendiente |
 | Clasificar las aplicaciones por categorías | Segunda iteración |
 
 En fase de requisitos: ver [requisitos](docs/requisitos.md), [decisiones](docs/decisiones.md) y [plan](docs/plan.md).

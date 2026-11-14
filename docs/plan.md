@@ -9,11 +9,9 @@ Antes de escribir código, cerrar las decisiones pendientes, agrupadas por la pi
 | Pieza | Decisiones |
 | --- | --- |
 | General | P-07 idioma del código, P-16 versión de Traefik, P-17 licencia |
-| Plugin | P-01 cómo llega a Traefik, P-02 dónde se activa, P-09 CSP, P-10 compresión, P-11 qué es una página |
-| Servicio | P-03 acceso a la API de Traefik, P-04 ocultar aplicaciones, P-12 quién ve la lista, P-15 caché del script |
 | Script | P-05 móvil, P-06 y P-13 posición del botón, P-08 qué se muestra, P-14 orden y enlaces |
 
-P-01 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`.
+D-08 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`, y la imagen del servicio lleva una copia de ese código para dejarla en el volumen de Traefik.
 
 ## 1. Esqueleto y entorno de pruebas
 
@@ -30,23 +28,22 @@ P-01 condiciona la estructura del repositorio: un plugin local tiene que estar e
 
 ## 2. Plugin
 
-- Detectar las páginas según P-11 y dejar pasar todo lo demás sin tocar ni cargarlo en memoria (RNF-02).
+- Detectar las páginas según D-11 y dejar pasar todo lo demás sin tocar ni cargarlo en memoria (RNF-02).
 - Insertar el script antes de `</head>` y ajustar la longitud y las cabeceras (RNF-03).
-- Compresión según P-10.
-- Exclusiones por aplicación (RF-02).
+- Quitar `Accept-Encoding` en las peticiones de página (D-10).
 - Pruebas unitarias con `httptest` y prueba en el entorno local, porque Traefik ejecuta el plugin con un intérprete que no admite todo lo que admite el compilador.
 
 Resultado: el entorno local inserta una etiqueta de script en todas las páginas de prueba sin romper ninguna.
 
 ## 3. Servicio
 
-- Solo GET (RNF-05). Sirve el script, embebido en el binario, con la caché de P-15.
-- Lista de aplicaciones a partir de la API de Traefik (RF-07, D-06), en una ruta separada del script (P-12):
-  - quitar duplicados, la ruta del menú, los routers TCP y UDP y las reglas sin nombre;
+- Solo GET (RNF-05). Sirve el script, embebido en el binario, con la caché de D-15.
+- Lista de aplicaciones a partir de la API de Traefik, consultada por una entrada interna (RF-07, D-06, D-12):
+  - solo los routers que usan el middleware del menú, cuyo nombre va en la configuración (D-16);
+  - quitar duplicados, los routers TCP y UDP y las reglas sin nombre;
   - sacar el principio del nombre de `HostRegexp` y el nombre completo de `Host` (D-07);
-  - quitar las aplicaciones ocultas por configuración (RF-08, P-04);
   - guardar la lista en caché (RNF-06).
-- Imagen Docker y publicación en GitHub Container Registry al etiquetar.
+- Imagen Docker, que incluye el código del plugin para copiarlo al volumen de Traefik (D-08), y publicación en GitHub Container Registry al etiquetar.
 
 Resultado: el servicio devuelve la lista correcta del entorno local.
 
@@ -64,14 +61,14 @@ Resultado: el menú funciona en todas las aplicaciones de prueba, en escritorio 
 
 ## 5. Primera versión
 
-- Recorrer en el entorno local la lista de casos de la fase 1 y anotar qué aplicaciones bloquean el script por CSP (P-09).
+- Recorrer en el entorno local la lista de casos de la fase 1 y anotar qué aplicaciones bloquean el script por CSP (D-14).
 - Completar el README: desarrollo, configuración del plugin y del servicio.
 - Etiquetar `v0.1.0`.
 
-Después, en el repositorio de despliegue, poner el menú en marcha de forma gradual (P-02).
+Después, en el repositorio de despliegue, añadir el middleware a las aplicaciones, empezando por un par de ellas (D-09).
 
 ## Segunda iteración
 
-Categorías (RF-11), nombres legibles e iconos (P-08) y, si interesa, ocultar aplicaciones desde la interfaz (P-04).
+Categorías (RF-11), nombres legibles e iconos (P-08).
 
 [← Volver al README](../README.md)
