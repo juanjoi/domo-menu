@@ -19,3 +19,9 @@ Antes de escribir código, leer `docs/requisitos.md`, `docs/decisiones.md` y `do
 - `docs/requisitos.md`: requisitos funcionales y no funcionales.
 - `docs/decisiones.md`: decisiones tomadas y pendientes.
 - `docs/plan.md`: fases hasta la primera versión.
+- `menu.go`, `.traefik.yml`: el plugin de Traefik, en la raíz del módulo porque así lo exige Traefik para los plugins locales. Solo librería estándar y construcciones sencillas: lo ejecuta Yaegi.
+- `cmd/domo-menu/`: el ejecutable (`servir`, `instalar-plugin`, `comprobar`).
+- `internal/apps/`: lista de aplicaciones a partir de la API de Traefik.
+- `internal/web/`: rutas HTTP del servicio.
+- `script/`: el script del menú, embebido en el servicio, y sus pruebas con Node.
+- `dev/`: entorno local con Traefik y una aplicación de pruebas, y `comprobar.sh`, la prueba de humo. Cualquier cambio en el plugin se prueba ahí, no solo con `go test`.

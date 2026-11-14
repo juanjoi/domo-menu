@@ -2,9 +2,18 @@
 
 Pasos hasta la primera versión, en orden. Cada fase termina con algo que se puede probar. El despliegue en la casa no está aquí: va en el repositorio de despliegue.
 
+| Fase | Estado |
+| --- | --- |
+| 0. Cerrar decisiones | Hecho |
+| 1. Esqueleto y entorno de pruebas | Hecho |
+| 2. Plugin | Hecho |
+| 3. Servicio | Hecho |
+| 4. Script | Hecho |
+| 5. Primera versión | Falta subir el repositorio a GitHub y etiquetar `v0.1.0` |
+
 ## 0. Cerrar decisiones
 
-Hecho: todas las decisiones están en [decisiones](decisiones.md), de D-08 a D-23. D-08 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`, y la imagen del servicio lleva una copia de ese código para dejarla en el volumen de Traefik.
+Todas las decisiones están en [decisiones](decisiones.md), de D-08 a D-23. D-08 condiciona la estructura del repositorio: un plugin local tiene que estar en la raíz de un módulo de Go con su `.traefik.yml`, y la imagen del servicio lleva una copia de ese código para dejarla en el volumen de Traefik.
 
 ## 1. Esqueleto y entorno de pruebas
 
@@ -54,7 +63,7 @@ Resultado: el menú funciona en todas las aplicaciones de prueba, en escritorio 
 
 ## 5. Primera versión
 
-- Recorrer en el entorno local la lista de casos de la fase 1 y anotar qué aplicaciones bloquean el script por CSP (D-14).
+- Recorrer en el entorno local la lista de casos de la fase 1 y anotar qué aplicaciones bloquean el script por CSP (D-14). Las aplicaciones de prueba lo hacen con `dev/comprobar.sh`; las reales del hub, al desplegar.
 - Completar el README: desarrollo, configuración del plugin y del servicio.
 - Etiquetar `v0.1.0`.
 
