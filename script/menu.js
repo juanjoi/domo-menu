@@ -7,11 +7,15 @@
 (function () {
   'use strict';
 
-  const SIZE = 44; // lado del botón, en px
+  // El botón es un círculo alrededor del icono que sale del borde, unido a
+  // él por dos curvas que acaban tangentes al borde.
+  const RADIUS = 22; // radio del círculo
+  const LIFT = 4; // separación entre el círculo y el borde
+  const FILLET = 12; // radio de las curvas que lo unen al borde
+  const DEPTH = LIFT + 2 * RADIUS; // cuánto sale del borde
+  // Largo junto al borde: donde las curvas tocan el borde.
+  const SIZE = 2 * Math.ceil(Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(LIFT + RADIUS - FILLET, 2)));
   const PANEL_WIDTH = 304; // tres mosaicos por fila
-  const GENIE_OPEN = 380; // duración del efecto genio, en ms
-  const GENIE_CLOSE = 280;
-  const GENIE_STEPS = 16;
   const GAP = 8; // separación entre el botón y la ventana
   const MIN_SCREEN = 600; // lado corto mínimo de la pantalla
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
@@ -61,8 +65,10 @@
     return { edge: edge, offset: Math.round(offset * 1000) / 1000 };
   }
 
-  // Esquina superior izquierda del botón para una posición.
-  function placement(pos, width, height, size) {
+  // Esquina superior izquierda del botón para una posición. size es el
+  // largo del botón junto al borde y depth cuánto sale de él.
+  function placement(pos, width, height, size, depth) {
+    const d = depth || size;
     const along = function (length) {
       return Math.max(0, length - size) * pos.offset;
     };
@@ -70,12 +76,17 @@
       case 'top':
         return { x: along(width), y: 0 };
       case 'bottom':
-        return { x: along(width), y: Math.max(0, height - size) };
+        return { x: along(width), y: Math.max(0, height - d) };
       case 'left':
         return { x: 0, y: along(height) };
       default:
-        return { x: Math.max(0, width - size), y: along(height) };
+        return { x: Math.max(0, width - d), y: along(height) };
     }
+  }
+
+  // Ancho y alto del botón pegado a un borde.
+  function buttonBox(edge) {
+    return edge === 'left' || edge === 'right' ? { width: DEPTH, height: SIZE } : { width: SIZE, height: DEPTH };
   }
 
   // Esquina superior izquierda de la ventana, junto al botón y dentro de la
@@ -85,9 +96,9 @@
     const maxY = Math.max(GAP, height - panelHeight - GAP);
     switch (pos.edge) {
       case 'left':
-        return { x: clamp(button.x + SIZE + GAP, GAP, maxX), y: clamp(button.y, GAP, maxY) };
+        return { x: clamp(button.x + DEPTH + GAP, GAP, maxX), y: clamp(button.y, GAP, maxY) };
       case 'top':
-        return { x: clamp(button.x, GAP, maxX), y: clamp(button.y + SIZE + GAP, GAP, maxY) };
+        return { x: clamp(button.x, GAP, maxX), y: clamp(button.y + DEPTH + GAP, GAP, maxY) };
       case 'bottom':
         return { x: clamp(button.x, GAP, maxX), y: clamp(button.y - panelHeight - GAP, GAP, maxY) };
       default:
@@ -95,49 +106,57 @@
     }
   }
 
-  function smoothstep(a, b, x) {
-    const t = clamp((x - a) / (b - a), 0, 1);
-    return t * t * (3 - 2 * t);
-  }
-
-  // Silueta del efecto genio: un polígono, en px de la ventana, que recorta
-  // la ventana para que salga del botón. progress va de 0, todo dentro del
-  // botón, a 1, la ventana entera. from y to son el tramo del lado de la
-  // ventana junto al botón que ocupa el botón. Primero sale un chorro del
-  // ancho del botón y luego se ensancha desde el extremo lejano, con los
-  // lados curvos.
-  function genieShape(edge, width, height, from, to, progress, samples) {
-    const n = samples || 12;
-    const horizontal = edge === 'left' || edge === 'right';
-    const axis = horizontal ? width : height;
-    const across = horizontal ? height : width;
-    const reach = axis * smoothstep(0, 0.6, progress);
-    const center = 2 * progress - 0.5;
-    const point = function (a, q) {
-      const r = function (v) {
-        return Math.round(v * 10) / 10 + 'px';
-      };
+  // Silueta del botón pegado a un borde, como trazado SVG en px del botón, y
+  // centro del círculo. Con attached falso, solo el círculo: así se ve
+  // mientras se arrastra.
+  function buttonShape(edge, attached) {
+    const box = buttonBox(edge);
+    const mid = SIZE / 2;
+    const c = LIFT + RADIUS; // distancia del centro al borde
+    // Puntos en coordenadas del borde izquierdo: a es la distancia al borde
+    // y s la posición a lo largo de él. Los demás bordes son giros o
+    // reflejos; un reflejo invierte el sentido de los arcos.
+    const map = function (a, s) {
       switch (edge) {
         case 'left':
-          return r(a) + ' ' + r(q);
+          return [a, s];
+        case 'right':
+          return [DEPTH - a, s];
         case 'top':
-          return r(q) + ' ' + r(a);
-        case 'bottom':
-          return r(q) + ' ' + r(height - a);
+          return [s, a];
         default:
-          return r(width - a) + ' ' + r(q);
+          return [s, DEPTH - a];
       }
     };
-    const near = [];
-    const far = [];
-    for (let i = 0; i <= n; i++) {
-      const u = i / n; // 0 en el extremo lejano, 1 junto al botón
-      const pinch = smoothstep(center - 0.5, center + 0.5, u);
-      const a = reach * (1 - u); // distancia al lado del botón
-      near.push(point(a, from * pinch));
-      far.push(point(a, across + (to - across) * pinch));
+    const flip = edge === 'right' || edge === 'top';
+    const r = function (v) {
+      return Math.round(v * 100) / 100;
+    };
+    const pt = function (a, s) {
+      const q = map(a, s);
+      return r(q[0]) + ' ' + r(q[1]);
+    };
+    const arc = function (radius, large, sweep, a, s) {
+      return ' A ' + radius + ' ' + radius + ' 0 ' + large + ' ' + (flip ? 1 - sweep : sweep) + ' ' + pt(a, s);
+    };
+    const center = map(c, mid);
+    let d;
+    if (attached) {
+      // Centro de cada curva: a FILLET del borde, tocando el círculo.
+      const reach = Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(c - FILLET, 2));
+      const k = RADIUS / (RADIUS + FILLET);
+      const ta = c + (FILLET - c) * k;
+      const ts = reach * k;
+      d =
+        'M ' + pt(0, mid - reach) +
+        arc(FILLET, 0, 0, ta, mid - ts) +
+        arc(RADIUS, 1, 1, ta, mid + ts) +
+        arc(FILLET, 0, 0, 0, mid + reach) +
+        ' Z';
+    } else {
+      d = 'M ' + pt(c - RADIUS, mid) + arc(RADIUS, 1, 0, c + RADIUS, mid) + arc(RADIUS, 1, 0, c - RADIUS, mid) + ' Z';
     }
-    return 'polygon(' + near.concat(far.reverse()).join(', ') + ')';
+    return { width: box.width, height: box.height, d: d, cx: center[0], cy: center[1] };
   }
 
   // Dirección de una aplicación con el esquema y el puerto de la página.
@@ -226,21 +245,22 @@
       }
     }
     .button {
-      position: fixed; width: ${SIZE}px; height: ${SIZE}px; margin: 0; padding: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); cursor: grab;
-      touch-action: none; user-select: none; -webkit-user-select: none;
-      opacity: 0.85; transition: opacity 0.15s;
+      position: fixed; display: block; margin: 0; padding: 0; border: 0; background: none;
+      cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent; opacity: 0.9; transition: opacity 0.15s;
     }
     .button:hover, .button:focus-visible, .button[aria-expanded="true"] { opacity: 1; }
-    .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .button:focus { outline: none; }
     .button.dragging { cursor: grabbing; opacity: 1; transition: none; }
-    .button[data-edge="left"] { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; }
-    .button[data-edge="right"] { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; }
-    .button[data-edge="top"] { border-top-left-radius: 0; border-top-right-radius: 0; border-top: 0; }
-    .button[data-edge="bottom"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
-    .button svg { width: 22px; height: 22px; fill: var(--fg); pointer-events: none; }
+    .button svg {
+      display: block; overflow: visible; pointer-events: none;
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+    }
+    .shape { fill: var(--surface); }
+    .glyph { fill: var(--fg); }
+    .button:focus-visible .shape { stroke: var(--accent); stroke-width: 3; }
+    .button[aria-expanded="true"] .shape { fill: var(--accent); }
+    .button[aria-expanded="true"] .glyph { fill: #ffffff; }
     .panel {
       position: fixed; width: ${PANEL_WIDTH}px; max-height: min(520px, calc(100vh - 16px));
       display: flex; flex-direction: column; margin: 0; padding: 0;
@@ -284,25 +304,31 @@
     @media (prefers-reduced-motion: reduce) { .button { transition: none; } }
   `;
 
-  // Icono de cuadrícula, creado con el DOM y no con innerHTML para que
-  // funcione en páginas con Trusted Types.
-  function gridIcon() {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Dibujo del botón: la silueta y el icono de cuadrícula, creados con el
+  // DOM y no con innerHTML para que funcione en páginas con Trusted Types.
+  function buttonDrawing() {
+    const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('aria-hidden', 'true');
+    const shape = document.createElementNS(SVG_NS, 'path');
+    shape.setAttribute('class', 'shape');
+    const glyph = document.createElementNS(SVG_NS, 'g');
+    glyph.setAttribute('class', 'glyph');
     [4, 10, 16].forEach(function (y) {
       [4, 10, 16].forEach(function (x) {
-        const rect = document.createElementNS(ns, 'rect');
+        const rect = document.createElementNS(SVG_NS, 'rect');
         rect.setAttribute('x', x);
         rect.setAttribute('y', y);
         rect.setAttribute('width', 4);
         rect.setAttribute('height', 4);
         rect.setAttribute('rx', 1);
-        svg.appendChild(rect);
+        glyph.appendChild(rect);
       });
     });
-    return svg;
+    svg.appendChild(shape);
+    svg.appendChild(glyph);
+    return { svg: svg, shape: shape, glyph: glyph };
   }
 
   // Hojas de estilo construidas: las CSP que prohíben estilos en línea no
@@ -380,7 +406,8 @@
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'panel');
-    button.appendChild(gridIcon());
+    const drawing = buttonDrawing();
+    button.appendChild(drawing.svg);
 
     const panel = document.createElement('div');
     panel.className = 'panel';
@@ -409,10 +436,23 @@
       button.style.top = y + 'px';
     }
 
+    function drawButton(attached) {
+      const s = buttonShape(pos.edge, attached);
+      button.style.width = s.width + 'px';
+      button.style.height = s.height + 'px';
+      drawing.svg.setAttribute('width', s.width);
+      drawing.svg.setAttribute('height', s.height);
+      drawing.svg.setAttribute('viewBox', '0 0 ' + s.width + ' ' + s.height);
+      drawing.shape.setAttribute('d', s.d);
+      // Icono de 24 a 22 px, en el centro del círculo.
+      drawing.glyph.setAttribute('transform', 'translate(' + (s.cx - 11) + ' ' + (s.cy - 11) + ') scale(' + 22 / 24 + ')');
+    }
+
     function placeButton() {
       const vp = viewport();
-      const p = placement(pos, vp.width, vp.height, SIZE);
+      const p = placement(pos, vp.width, vp.height, SIZE, DEPTH);
       button.dataset.edge = pos.edge;
+      drawButton(true);
       moveButton(p.x, p.y);
     }
 
@@ -424,61 +464,8 @@
       panel.style.top = p.y + 'px';
     }
 
-    let opened = false;
-    let animation = null;
-
     function isOpen() {
-      return opened;
-    }
-
-    function canAnimate() {
-      return (
-        typeof panel.animate === 'function' &&
-        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) &&
-        !!(window.CSS && window.CSS.supports && window.CSS.supports('clip-path', 'polygon(0px 0px, 1px 0px, 0px 1px)'))
-      );
-    }
-
-    // Fotogramas del efecto genio, con la ventana ya colocada y visible.
-    function genieFrames() {
-      const p = panel.getBoundingClientRect();
-      const horizontal = pos.edge === 'left' || pos.edge === 'right';
-      const across = horizontal ? p.height : p.width;
-      const start = horizontal ? point.y - p.top : point.x - p.left;
-      const half = Math.min(SIZE, across) / 2;
-      const middle = clamp(start + SIZE / 2, half, across - half);
-      const frames = [];
-      for (let i = 0; i <= GENIE_STEPS; i++) {
-        const progress = i / GENIE_STEPS;
-        frames.push({
-          clipPath: genieShape(pos.edge, p.width, p.height, middle - half, middle + half, progress),
-          opacity: Math.min(1, progress * 4),
-        });
-      }
-      return frames;
-    }
-
-    function genie(opening, done) {
-      if (animation) animation.cancel();
-      animation = null;
-      if (!canAnimate()) return done && done();
-      try {
-        const current = panel.animate(genieFrames(), {
-          duration: opening ? GENIE_OPEN : GENIE_CLOSE,
-          easing: opening ? 'cubic-bezier(0.2, 0.7, 0.3, 1)' : 'cubic-bezier(0.6, 0, 0.8, 0.4)',
-          direction: opening ? 'normal' : 'reverse',
-          fill: opening ? 'none' : 'forwards',
-        });
-        animation = current;
-        current.onfinish = function () {
-          if (animation !== current) return;
-          animation = null;
-          if (done) done();
-          current.cancel();
-        };
-      } catch (e) {
-        if (done) done();
-      }
+      return !panel.hidden;
     }
 
     function open() {
@@ -500,31 +487,18 @@
         });
         loaded = true;
       }
-      opened = true;
       panel.hidden = false;
       button.setAttribute('aria-expanded', 'true');
       placePanel();
-      genie(true);
       const target = list.querySelector('a[aria-current="page"]') || list.querySelector('a');
       if (target) target.focus({ preventScroll: true });
     }
 
-    // Al arrastrar se cierra sin efecto: el botón ya no está donde salió.
-    function close(focusButton, instant) {
+    function close(focusButton) {
       if (!isOpen()) return;
-      opened = false;
+      panel.hidden = true;
       button.setAttribute('aria-expanded', 'false');
       if (focusButton) button.focus();
-      const hide = function () {
-        if (!opened) panel.hidden = true;
-      };
-      if (instant) {
-        if (animation) animation.cancel();
-        animation = null;
-        hide();
-      } else {
-        genie(false, hide);
-      }
     }
 
     // Arrastre con ratón o dedo. Un movimiento corto cuenta como pulsación.
@@ -545,10 +519,12 @@
         if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
         drag.moving = true;
         button.classList.add('dragging');
-        close(false, true);
+        drawButton(false);
+        close(false);
       }
       const vp = viewport();
-      moveButton(clamp(drag.bx + dx, 0, vp.width - SIZE), clamp(drag.by + dy, 0, vp.height - SIZE));
+      const box = buttonBox(pos.edge);
+      moveButton(clamp(drag.bx + dx, 0, vp.width - box.width), clamp(drag.by + dy, 0, vp.height - box.height));
     });
 
     function endDrag(e, commit) {
@@ -560,7 +536,8 @@
       suppressClickUntil = performance.now() + 400;
       if (commit) {
         const vp = viewport();
-        pos = snap(point.x + SIZE / 2, point.y + SIZE / 2, vp.width, vp.height, SIZE);
+        const box = buttonBox(pos.edge);
+        pos = snap(point.x + box.width / 2, point.y + box.height / 2, vp.width, vp.height, SIZE);
         savePosition(formatPos(pos));
       }
       placeButton();
@@ -641,7 +618,7 @@
       appUrl: appUrl,
       appList: appList,
       groupApps: groupApps,
-      genieShape: genieShape,
+      buttonShape: buttonShape,
     });
     return;
   }

@@ -60,7 +60,7 @@ test('panelPlacement queda dentro de la pantalla', () => {
   const p = menu.panelPlacement({ edge: 'right', offset: 1 }, { x: 956, y: 756 }, 260, 300, 1000, 800);
   assert.deepEqual({ ...p }, { x: 688, y: 492 });
   const q = menu.panelPlacement({ edge: 'left', offset: 0 }, { x: 0, y: 0 }, 260, 300, 1000, 800);
-  assert.deepEqual({ ...q }, { x: 52, y: 8 });
+  assert.deepEqual({ ...q }, { x: 56, y: 8 });
 });
 
 test('appUrl y appList', () => {
@@ -108,37 +108,23 @@ test('groupApps', () => {
   assert.deepEqual(names(menu.groupApps([], cats)), []);
 });
 
-test('genieShape', () => {
-  const points = (shape) =>
-    shape
-      .replace(/^polygon\(|\)$/g, '')
-      .split(', ')
-      .map((p) => p.split(' ').map((v) => parseFloat(v)));
-  const box = (pts) => {
-    const xs = pts.map((p) => p[0]);
-    const ys = pts.map((p) => p[1]);
-    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-  };
-
-  // Abierta del todo: la ventana entera, sea cual sea el borde.
+test('buttonShape', () => {
+  const nums = (d) => d.match(/-?[\d.]+/g).map(Number);
   for (const edge of ['top', 'right', 'bottom', 'left']) {
-    assert.deepEqual(box(points(menu.genieShape(edge, 300, 200, 40, 84, 1, 4))), [0, 0, 300, 200], edge);
+    const s = menu.buttonShape(edge, true);
+    const vertical = edge === 'left' || edge === 'right';
+    // Sale 48 px del borde y mide 62 a lo largo de él.
+    assert.deepEqual([s.width, s.height], vertical ? [48, 62] : [62, 48], edge);
+    // Empieza y acaba sobre el borde, en los extremos del botón.
+    const n = nums(s.d);
+    const first = n.slice(0, 2);
+    const last = n.slice(-2);
+    const onEdge = { left: (p) => p[0] === 0, right: (p) => p[0] === 48, top: (p) => p[1] === 0, bottom: (p) => p[1] === 48 }[edge];
+    assert.ok(onEdge(first) && onEdge(last), edge + ' ' + s.d);
+    // El círculo, a 26 px del borde y en el centro a lo largo.
+    const center = { left: [26, 31], right: [22, 31], top: [31, 26], bottom: [31, 22] }[edge];
+    assert.deepEqual([s.cx, s.cy], center, edge);
+    // Suelto, solo el círculo.
+    assert.ok(!menu.buttonShape(edge, false).d.includes(' 0 0 0 '), edge);
   }
-
-  // Cerrada: un trazo en el lado del botón, del ancho del botón.
-  assert.deepEqual(box(points(menu.genieShape('right', 300, 200, 40, 84, 0, 4))), [300, 40, 300, 84]);
-  assert.deepEqual(box(points(menu.genieShape('left', 300, 200, 40, 84, 0, 4))), [0, 40, 0, 84]);
-  assert.deepEqual(box(points(menu.genieShape('top', 300, 200, 40, 84, 0, 4))), [40, 0, 84, 0]);
-  assert.deepEqual(box(points(menu.genieShape('bottom', 300, 200, 40, 84, 0, 4))), [40, 200, 84, 200]);
-
-  // A medias: ancha lejos del botón y estrecha junto a él.
-  const half = points(menu.genieShape('right', 300, 200, 40, 84, 0.5, 4));
-  const atButton = half.filter((p) => p[0] === 300).map((p) => p[1]);
-  assert.deepEqual([Math.min(...atButton), Math.max(...atButton)], [40, 84]);
-  const farX = Math.min(...half.map((p) => p[0]));
-  const atFar = half.filter((p) => p[0] === farX).map((p) => p[1]);
-  assert.deepEqual([Math.min(...atFar), Math.max(...atFar)], [0, 200]);
-
-  // Siempre el mismo número de puntos, para que se pueda animar.
-  assert.equal(points(menu.genieShape('top', 300, 200, 40, 84, 0.3)).length, points(menu.genieShape('top', 300, 200, 40, 84, 0.9)).length);
 });
