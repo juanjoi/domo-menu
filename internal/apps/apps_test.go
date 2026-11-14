@@ -41,13 +41,13 @@ func menuMW(name string, cfg map[string]any) Middleware {
 	return Middleware{Name: name, Type: "menu", Status: "enabled", Plugin: map[string]map[string]any{"menu": cfg}}
 }
 
-var categories = []string{"Infraestructura", "Familia", "Domótica"}
+var categories = []string{"Casa", "Media", "Administración"}
 
 func TestBuild(t *testing.T) {
 	middlewares := []Middleware{
 		menuMW("menu@file", nil),
-		menuMW("fotos-menu@docker", map[string]any{"categoria": "familia", "nombre": "Fotos", "icono": "fotos.svg"}),
-		menuMW("luces-menu@docker", map[string]any{"categoria": "Domótica", "icono": "../secreto.svg"}),
+		menuMW("fotos-menu@docker", map[string]any{"categoria": "media", "nombre": "Fotos", "icono": "fotos.svg"}),
+		menuMW("luces-menu@docker", map[string]any{"categoria": "Casa", "icono": "../secreto.svg"}),
 		menuMW("raro-menu@docker", map[string]any{"categoria": "Inventada", "icono": "falta.svg"}),
 		{Name: "compress@file", Type: "compress", Status: "enabled"},
 		{Name: "roto@file", Type: "menu", Status: "disabled"},
@@ -67,8 +67,8 @@ func TestBuild(t *testing.T) {
 	exists := func(name string) bool { return name == "fotos.svg" }
 	got := Build(routers, middlewares, Options{Plugin: "menu", Categories: categories, IconExists: exists})
 	want := []App{
-		{Name: "immich", Title: "Fotos", Category: "Familia", Icon: "/__menu/iconos/fotos.svg"},
-		{Name: "ha", Category: "Domótica"},
+		{Name: "ha", Category: "Casa"},
+		{Name: "immich", Title: "Fotos", Category: "Media", Icon: "/__menu/iconos/fotos.svg"},
 		{Name: "alfa"},
 		{Name: "raro"},
 		{Name: "zeta"},

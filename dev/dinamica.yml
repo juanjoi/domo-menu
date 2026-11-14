@@ -9,13 +9,13 @@ http:
     traefik-menu:
       plugin:
         menu:
-          categoria: Infraestructura
+          categoria: Administración
           nombre: Panel de Traefik
           icono: traefik.svg
     fichero-menu:
       plugin:
         menu:
-          categoria: Infraestructura
+          categoria: Administración
     # Solo texto: los vídeos, fotos y descargas ya vienen comprimidos o no
     # ganan nada, y comprimirlos gasta CPU.
     compress:

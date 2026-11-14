@@ -35,7 +35,7 @@ services:
     build: ..
     environment:
       MENU_API_TRAEFIK: http://traefik:8080
-      MENU_CATEGORIAS: Infraestructura, Familia, Domótica
+      MENU_CATEGORIAS: Casa, Media, Administración
       MENU_CACHE: 5s
     volumes:
       - menu-datos:/datos
@@ -49,14 +49,14 @@ services:
       traefik.http.routers.sencilla.rule: HostRegexp(`^sencilla\.`)
       # Cada aplicación con datos para el menú tiene su propia instancia del
       # middleware; las demás usan el común, menu@file, y salen en «Otras».
-      traefik.http.middlewares.sencilla-menu.plugin.menu.categoria: Familia
+      traefik.http.middlewares.sencilla-menu.plugin.menu.categoria: Media
       traefik.http.middlewares.sencilla-menu.plugin.menu.nombre: Página sencilla
       traefik.http.middlewares.sencilla-menu.plugin.menu.icono: sencilla.svg
       traefik.http.routers.sencilla.middlewares: compress@file,sencilla-menu
       traefik.http.routers.compresion.rule: HostRegexp(`^compresion\.`)
       traefik.http.routers.compresion.middlewares: compress@file,menu@file
       traefik.http.routers.csp.rule: HostRegexp(`^csp\.`)
-      traefik.http.middlewares.csp-menu.plugin.menu.categoria: familia
+      traefik.http.middlewares.csp-menu.plugin.menu.categoria: media
       traefik.http.middlewares.csp-menu.plugin.menu.icono: csp.svg
       traefik.http.routers.csp.middlewares: compress@file,csp-menu
       traefik.http.routers.cspnonce.rule: HostRegexp(`^cspnonce\.`)
@@ -66,7 +66,7 @@ services:
       traefik.http.routers.iframe.rule: HostRegexp(`^iframe\.`)
       traefik.http.routers.iframe.middlewares: compress@file,menu@file
       traefik.http.routers.websocket.rule: HostRegexp(`^websocket\.`)
-      traefik.http.middlewares.websocket-menu.plugin.menu.categoria: Domótica
+      traefik.http.middlewares.websocket-menu.plugin.menu.categoria: Casa
       traefik.http.middlewares.websocket-menu.plugin.menu.icono: websocket.svg
       traefik.http.routers.websocket.middlewares: compress@file,websocket-menu
       traefik.http.routers.completo.rule: Host(`completo.menu.localhost`)

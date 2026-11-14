@@ -93,7 +93,7 @@ Para darle categoría, nombre visible o icono, la aplicación usa su propia inst
 
 ```yaml
 labels:
-  - traefik.http.middlewares.miapp-menu.plugin.menu.categoria=Familia
+  - traefik.http.middlewares.miapp-menu.plugin.menu.categoria=Media
   - traefik.http.middlewares.miapp-menu.plugin.menu.nombre=Mi aplicación
   - traefik.http.middlewares.miapp-menu.plugin.menu.icono=miapp.svg
   - traefik.http.routers.miapp.middlewares=compress@file,miapp-menu

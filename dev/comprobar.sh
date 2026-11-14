@@ -41,9 +41,9 @@ comprueba "lista con la ruta de fichero" \
   "$(curl -s -H 'Host: csp.menu.localhost' "$BASE/__menu/apps.json" | grep -c '"fichero"')" 1
 
 lista=$(curl -s -H 'Host: csp.menu.localhost' "$BASE/__menu/apps.json")
-comprueba "categorías en la lista" "$(echo "$lista" | grep -c '"categories":\["Infraestructura","Familia","Domótica"\]')" 1
-comprueba "categoría escrita de otra forma" "$(echo "$lista" | grep -c '"name":"csp","category":"Familia"')" 1
-comprueba "nombre visible e icono" "$(echo "$lista" | grep -c '"title":"Página sencilla","category":"Familia","icon":"/__menu/iconos/sencilla.svg"')" 1
+comprueba "categorías en la lista" "$(echo "$lista" | grep -c '"categories":\["Casa","Media","Administración"\]')" 1
+comprueba "categoría escrita de otra forma" "$(echo "$lista" | grep -c '"name":"csp","category":"Media"')" 1
+comprueba "nombre visible e icono" "$(echo "$lista" | grep -c '"title":"Página sencilla","category":"Media","icon":"/__menu/iconos/sencilla.svg"')" 1
 comprueba "categoría desconocida e icono que no existe" "$(echo "$lista" | grep -c '"name":"completo","host":"completo.menu.localhost"}')" 1
 comprueba "icono servido" "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' -H 'Host: csp.menu.localhost' "$BASE/__menu/iconos/csp.svg")" "200 image/svg+xml"
 comprueba "icono que no existe" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: csp.menu.localhost' "$BASE/__menu/iconos/no-existe.svg")" 404

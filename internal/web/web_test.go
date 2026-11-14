@@ -103,9 +103,9 @@ func TestPosition(t *testing.T) {
 }
 
 func TestCategories(t *testing.T) {
-	h := Handler(Config{Apps: fakeApps{list: []apps.App{{Name: "a", Category: "Familia"}}}, Categories: []string{"Familia", "Domótica"}, Position: &position.Store{}})
+	h := Handler(Config{Apps: fakeApps{list: []apps.App{{Name: "a", Category: "Media"}}}, Categories: []string{"Media", "Casa"}, Position: &position.Store{}})
 	rec := do(h, "GET", "/__menu/apps.json", nil)
-	if !strings.Contains(rec.Body.String(), `"categories":["Familia","Domótica"]`) || !strings.Contains(rec.Body.String(), `"category":"Familia"`) {
+	if !strings.Contains(rec.Body.String(), `"categories":["Media","Casa"]`) || !strings.Contains(rec.Body.String(), `"category":"Media"`) {
 		t.Fatalf("body %s", rec.Body.String())
 	}
 }
