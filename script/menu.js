@@ -8,6 +8,10 @@
   'use strict';
 
   const SIZE = 44; // lado del botón, en px
+  const PANEL_WIDTH = 304; // tres mosaicos por fila
+  const GENIE_OPEN = 380; // duración del efecto genio, en ms
+  const GENIE_CLOSE = 280;
+  const GENIE_STEPS = 16;
   const GAP = 8; // separación entre el botón y la ventana
   const MIN_SCREEN = 600; // lado corto mínimo de la pantalla
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
@@ -91,6 +95,51 @@
     }
   }
 
+  function smoothstep(a, b, x) {
+    const t = clamp((x - a) / (b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  // Silueta del efecto genio: un polígono, en px de la ventana, que recorta
+  // la ventana para que salga del botón. progress va de 0, todo dentro del
+  // botón, a 1, la ventana entera. from y to son el tramo del lado de la
+  // ventana junto al botón que ocupa el botón. Primero sale un chorro del
+  // ancho del botón y luego se ensancha desde el extremo lejano, con los
+  // lados curvos.
+  function genieShape(edge, width, height, from, to, progress, samples) {
+    const n = samples || 12;
+    const horizontal = edge === 'left' || edge === 'right';
+    const axis = horizontal ? width : height;
+    const across = horizontal ? height : width;
+    const reach = axis * smoothstep(0, 0.6, progress);
+    const center = 2 * progress - 0.5;
+    const point = function (a, q) {
+      const r = function (v) {
+        return Math.round(v * 10) / 10 + 'px';
+      };
+      switch (edge) {
+        case 'left':
+          return r(a) + ' ' + r(q);
+        case 'top':
+          return r(q) + ' ' + r(a);
+        case 'bottom':
+          return r(q) + ' ' + r(height - a);
+        default:
+          return r(width - a) + ' ' + r(q);
+      }
+    };
+    const near = [];
+    const far = [];
+    for (let i = 0; i <= n; i++) {
+      const u = i / n; // 0 en el extremo lejano, 1 junto al botón
+      const pinch = smoothstep(center - 0.5, center + 0.5, u);
+      const a = reach * (1 - u); // distancia al lado del botón
+      near.push(point(a, from * pinch));
+      far.push(point(a, across + (to - across) * pinch));
+    }
+    return 'polygon(' + near.concat(far.reverse()).join(', ') + ')';
+  }
+
   // Dirección de una aplicación con el esquema y el puerto de la página.
   function appUrl(app, location, domain) {
     const host = app.host || (domain ? app.name + '.' + domain : '');
@@ -165,15 +214,15 @@
     :host { all: initial; }
     * { box-sizing: border-box; }
     .button, .panel {
-      --bg: #ffffff; --fg: #1f2937; --muted: #6b7280; --line: #d1d5db;
-      --hover: #f3f4f6; --accent: #2563eb; --accent-bg: #dbeafe;
+      --bg: #f6f7f9; --surface: #ffffff; --fg: #1d2129; --muted: #6b7280;
+      --line: #d1d5db; --tile: #eceef2; --accent: #2563eb;
       font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: var(--fg);
     }
     @media (prefers-color-scheme: dark) {
       .button, .panel {
-        --bg: #1f2937; --fg: #f3f4f6; --muted: #9ca3af; --line: #374151;
-        --hover: #374151; --accent: #93c5fd; --accent-bg: #1e3a8a;
+        --bg: #14161a; --surface: #1d2026; --fg: #e6e8eb; --muted: #9aa1ab;
+        --line: #2f343d; --tile: #2a2e36; --accent: #6b9bff;
       }
     }
     .button {
@@ -193,36 +242,44 @@
     .button[data-edge="bottom"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
     .button svg { width: 22px; height: 22px; fill: var(--fg); pointer-events: none; }
     .panel {
-      position: fixed; width: 260px; max-height: min(480px, calc(100vh - 16px));
+      position: fixed; width: ${PANEL_WIDTH}px; max-height: min(520px, calc(100vh - 16px));
       display: flex; flex-direction: column; margin: 0; padding: 0;
-      background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+      background: var(--bg); border: 1px solid var(--line); border-radius: 16px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); overflow: hidden;
     }
     .panel[hidden] { display: none; }
     .title {
-      margin: 0; padding: 12px 16px 8px; font-size: 12px; font-weight: 600;
+      margin: 0; padding: 14px 16px 4px; font-size: 12px; font-weight: 600;
       letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
     }
-    .list { overflow-y: auto; padding: 0 8px 8px; }
-    ul { list-style: none; margin: 0; padding: 0; }
+    .list { overflow-y: auto; padding: 0 10px 10px; }
+    ul {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+    }
     .group {
-      margin: 8px 8px 4px; font-size: 11px; font-weight: 600;
+      margin: 12px 6px 6px; font-size: 11px; font-weight: 600;
       letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
     }
     a {
-      display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 8px;
-      border-radius: 8px; color: var(--fg); text-decoration: none;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 10px 4px 8px; border-radius: 14px; color: var(--fg);
+      text-decoration: none; text-align: center;
     }
-    a:hover { background: var(--hover); }
+    a:hover { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.13); }
     a:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
-    a[aria-current="page"] { background: var(--accent-bg); font-weight: 600; }
+    a[aria-current="page"] .icon { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+    a[aria-current="page"] .name { font-weight: 600; }
     .icon {
-      flex: none; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-      border-radius: 6px; background: var(--hover); color: var(--muted);
-      font-size: 13px; font-weight: 600; text-transform: uppercase; overflow: hidden;
+      flex: none; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+      border-radius: 14px; background: var(--tile); color: var(--muted);
+      font-size: 22px; font-weight: 600; text-transform: uppercase; overflow: hidden;
     }
-    .icon img { width: 20px; height: 20px; object-fit: contain; }
-    .empty { padding: 4px 16px 16px; color: var(--muted); }
+    .icon img { width: 38px; height: 38px; object-fit: contain; }
+    .name {
+      max-width: 100%; font-size: 12px; line-height: 1.25; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
     @media print { .button, .panel { display: none; } }
     @media (prefers-reduced-motion: reduce) { .button { transition: none; } }
   `;
@@ -297,6 +354,7 @@
     img.src = app.icon || app.url + 'favicon.ico';
 
     const name = document.createElement('span');
+    name.className = 'name';
     name.textContent = app.name;
 
     a.appendChild(icon);
@@ -366,8 +424,61 @@
       panel.style.top = p.y + 'px';
     }
 
+    let opened = false;
+    let animation = null;
+
     function isOpen() {
-      return !panel.hidden;
+      return opened;
+    }
+
+    function canAnimate() {
+      return (
+        typeof panel.animate === 'function' &&
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) &&
+        !!(window.CSS && window.CSS.supports && window.CSS.supports('clip-path', 'polygon(0px 0px, 1px 0px, 0px 1px)'))
+      );
+    }
+
+    // Fotogramas del efecto genio, con la ventana ya colocada y visible.
+    function genieFrames() {
+      const p = panel.getBoundingClientRect();
+      const horizontal = pos.edge === 'left' || pos.edge === 'right';
+      const across = horizontal ? p.height : p.width;
+      const start = horizontal ? point.y - p.top : point.x - p.left;
+      const half = Math.min(SIZE, across) / 2;
+      const middle = clamp(start + SIZE / 2, half, across - half);
+      const frames = [];
+      for (let i = 0; i <= GENIE_STEPS; i++) {
+        const progress = i / GENIE_STEPS;
+        frames.push({
+          clipPath: genieShape(pos.edge, p.width, p.height, middle - half, middle + half, progress),
+          opacity: Math.min(1, progress * 4),
+        });
+      }
+      return frames;
+    }
+
+    function genie(opening, done) {
+      if (animation) animation.cancel();
+      animation = null;
+      if (!canAnimate()) return done && done();
+      try {
+        const current = panel.animate(genieFrames(), {
+          duration: opening ? GENIE_OPEN : GENIE_CLOSE,
+          easing: opening ? 'cubic-bezier(0.2, 0.7, 0.3, 1)' : 'cubic-bezier(0.6, 0, 0.8, 0.4)',
+          direction: opening ? 'normal' : 'reverse',
+          fill: opening ? 'none' : 'forwards',
+        });
+        animation = current;
+        current.onfinish = function () {
+          if (animation !== current) return;
+          animation = null;
+          if (done) done();
+          current.cancel();
+        };
+      } catch (e) {
+        if (done) done();
+      }
     }
 
     function open() {
@@ -389,18 +500,31 @@
         });
         loaded = true;
       }
+      opened = true;
       panel.hidden = false;
       button.setAttribute('aria-expanded', 'true');
       placePanel();
+      genie(true);
       const target = list.querySelector('a[aria-current="page"]') || list.querySelector('a');
-      if (target) target.focus();
+      if (target) target.focus({ preventScroll: true });
     }
 
-    function close(focusButton) {
+    // Al arrastrar se cierra sin efecto: el botón ya no está donde salió.
+    function close(focusButton, instant) {
       if (!isOpen()) return;
-      panel.hidden = true;
+      opened = false;
       button.setAttribute('aria-expanded', 'false');
       if (focusButton) button.focus();
+      const hide = function () {
+        if (!opened) panel.hidden = true;
+      };
+      if (instant) {
+        if (animation) animation.cancel();
+        animation = null;
+        hide();
+      } else {
+        genie(false, hide);
+      }
     }
 
     // Arrastre con ratón o dedo. Un movimiento corto cuenta como pulsación.
@@ -421,7 +545,7 @@
         if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
         drag.moving = true;
         button.classList.add('dragging');
-        close(false);
+        close(false, true);
       }
       const vp = viewport();
       moveButton(clamp(drag.bx + dx, 0, vp.width - SIZE), clamp(drag.by + dy, 0, vp.height - SIZE));
@@ -517,6 +641,7 @@
       appUrl: appUrl,
       appList: appList,
       groupApps: groupApps,
+      genieShape: genieShape,
     });
     return;
   }

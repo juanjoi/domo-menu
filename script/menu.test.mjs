@@ -107,3 +107,38 @@ test('groupApps', () => {
   assert.deepEqual(names(menu.groupApps([a('x', 'Media')], [])), [['', ['x']]]);
   assert.deepEqual(names(menu.groupApps([], cats)), []);
 });
+
+test('genieShape', () => {
+  const points = (shape) =>
+    shape
+      .replace(/^polygon\(|\)$/g, '')
+      .split(', ')
+      .map((p) => p.split(' ').map((v) => parseFloat(v)));
+  const box = (pts) => {
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
+
+  // Abierta del todo: la ventana entera, sea cual sea el borde.
+  for (const edge of ['top', 'right', 'bottom', 'left']) {
+    assert.deepEqual(box(points(menu.genieShape(edge, 300, 200, 40, 84, 1, 4))), [0, 0, 300, 200], edge);
+  }
+
+  // Cerrada: un trazo en el lado del botón, del ancho del botón.
+  assert.deepEqual(box(points(menu.genieShape('right', 300, 200, 40, 84, 0, 4))), [300, 40, 300, 84]);
+  assert.deepEqual(box(points(menu.genieShape('left', 300, 200, 40, 84, 0, 4))), [0, 40, 0, 84]);
+  assert.deepEqual(box(points(menu.genieShape('top', 300, 200, 40, 84, 0, 4))), [40, 0, 84, 0]);
+  assert.deepEqual(box(points(menu.genieShape('bottom', 300, 200, 40, 84, 0, 4))), [40, 200, 84, 200]);
+
+  // A medias: ancha lejos del botón y estrecha junto a él.
+  const half = points(menu.genieShape('right', 300, 200, 40, 84, 0.5, 4));
+  const atButton = half.filter((p) => p[0] === 300).map((p) => p[1]);
+  assert.deepEqual([Math.min(...atButton), Math.max(...atButton)], [40, 84]);
+  const farX = Math.min(...half.map((p) => p[0]));
+  const atFar = half.filter((p) => p[0] === farX).map((p) => p[1]);
+  assert.deepEqual([Math.min(...atFar), Math.max(...atFar)], [0, 200]);
+
+  // Siempre el mismo número de puntos, para que se pueda animar.
+  assert.equal(points(menu.genieShape('top', 300, 200, 40, 84, 0.3)).length, points(menu.genieShape('top', 300, 200, 40, 84, 0.9)).length);
+});

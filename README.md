@@ -24,6 +24,7 @@ navegador ──► Traefik ──► aplicación
 | Ventana con las aplicaciones que llevan el menú, con su icono y la actual marcada | Hecho |
 | Tema claro u oscuro, teclado; oculto en móviles | Hecho |
 | Aplicaciones agrupadas por categorías, con nombre visible e icono propio | Hecho |
+| Rejilla de mosaicos, tres por fila, que sale del botón con un efecto genio | Hecho |
 
 El porqué de cada cosa está en [requisitos](docs/requisitos.md) y [decisiones](docs/decisiones.md), y el avance en el [plan](docs/plan.md).
 
