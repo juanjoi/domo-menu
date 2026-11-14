@@ -67,7 +67,10 @@ http:
       plugin:
         menu: {}
     compress:
-      compress: {}
+      compress:
+        # Solo texto: sin esto Traefik comprime también vídeos y descargas.
+        includedContentTypes:
+          [text/html, text/css, text/plain, text/javascript, application/javascript, application/json, image/svg+xml]
 ```
 
 | Opción | Por defecto | Uso |

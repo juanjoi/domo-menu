@@ -6,8 +6,19 @@ http:
     menu:
       plugin:
         menu: {}
+    # Solo texto: los vídeos, fotos y descargas ya vienen comprimidos o no
+    # ganan nada, y comprimirlos gasta CPU.
     compress:
-      compress: {}
+      compress:
+        includedContentTypes:
+          - text/html
+          - text/css
+          - text/plain
+          - text/javascript
+          - application/javascript
+          - application/json
+          - application/manifest+json
+          - image/svg+xml
     # El servicio del menú no recibe cookies ni credenciales de las aplicaciones.
     menu-sin-credenciales:
       headers:
