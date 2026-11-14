@@ -40,4 +40,11 @@ comprueba "lista sin la aplicación sin middleware" \
 comprueba "lista con la ruta de fichero" \
   "$(curl -s -H 'Host: csp.menu.localhost' "$BASE/__menu/apps.json" | grep -c '"fichero"')" 1
 
+comprueba "posición guardada" "$(curl -s -o /dev/null -w '%{http_code}' -X PUT --data 'left:0.250' -H 'Host: csp.menu.localhost' "$BASE/__menu/posicion")" 204
+comprueba "posición en la lista desde otra aplicación" \
+  "$(curl -s -H 'Host: sencilla.menu.localhost' "$BASE/__menu/apps.json" | grep -c '"position":"left:0.250"')" 1
+comprueba "posición no válida rechazada" "$(curl -s -o /dev/null -w '%{http_code}' -X PUT --data '<x>' -H 'Host: csp.menu.localhost' "$BASE/__menu/posicion")" 400
+comprueba "posición solo con PUT" "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data 'left:0.5' -H 'Host: csp.menu.localhost' "$BASE/__menu/posicion")" 405
+curl -s -o /dev/null -X PUT --data 'right:0.500' -H 'Host: csp.menu.localhost' "$BASE/__menu/posicion"
+
 [ "$fallos" -eq 0 ] && echo "Todo bien." || { echo "$fallos fallos."; exit 1; }

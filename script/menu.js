@@ -11,7 +11,6 @@
   const GAP = 8; // separación entre el botón y la ventana
   const MIN_SCREEN = 600; // lado corto mínimo de la pantalla
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
-  const COOKIE = 'domo-menu-pos';
   const DEFAULT_POS = { edge: 'right', offset: 0.5 };
   const EDGES = ['top', 'right', 'bottom', 'left'];
 
@@ -115,23 +114,23 @@
 
   // --- Navegador ---
 
-  function readCookie() {
-    const m = document.cookie.match(new RegExp('(?:^|;\\s*)' + COOKIE + '=([^;]*)'));
-    return m ? decodeURIComponent(m[1]) : '';
+  function fetchList() {
+    return fetch('/__menu/apps.json', { credentials: 'omit', cache: 'no-cache' }).then(function (response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    });
   }
 
-  // Guarda la posición en el dominio común; si el navegador no acepta la
-  // cookie en ese dominio, solo en el nombre actual.
-  function writeCookie(value, domain) {
-    const base =
-      COOKIE + '=' + value +
-      '; path=/; max-age=31536000; SameSite=Lax' +
-      (location.protocol === 'https:' ? '; Secure' : '');
-    if (domain) {
-      document.cookie = base + '; domain=' + domain;
-      if (readCookie() === value) return;
-    }
-    document.cookie = base;
+  // La posición es una sola para toda la casa y la guarda el servicio: con
+  // dominios internos como .internal el navegador no comparte nada entre
+  // aplicaciones. Si no se puede guardar, se queda en esta página.
+  function savePosition(value) {
+    fetch('/__menu/posicion', {
+      method: 'PUT',
+      body: value,
+      credentials: 'omit',
+      headers: { 'Content-Type': 'text/plain' },
+    }).catch(function () {});
   }
 
   const CSS = `
@@ -269,8 +268,6 @@
   function render(data) {
     const apps = appList(data, location);
     if (!apps.length) return;
-    const domain = commonDomain(location.hostname, data.domain);
-
     const host = document.createElement('domo-menu');
     host.style.setProperty('all', 'initial', 'important');
     host.style.setProperty('position', 'fixed', 'important');
@@ -303,7 +300,7 @@
     shadow.appendChild(button);
     shadow.appendChild(panel);
 
-    let pos = parsePos(readCookie());
+    let pos = parsePos(data.position);
     let point = { x: 0, y: 0 };
     let loaded = false;
 
@@ -387,7 +384,7 @@
       if (commit) {
         const vp = viewport();
         pos = snap(point.x + SIZE / 2, point.y + SIZE / 2, vp.width, vp.height, SIZE);
-        writeCookie(formatPos(pos), domain);
+        savePosition(formatPos(pos));
       }
       placeButton();
     }
@@ -425,16 +422,19 @@
       if (isOpen()) placePanel();
     });
 
-    // Otra aplicación pudo cambiar la posición mientras esta pestaña estaba
+    // Otra pestaña o dispositivo pudo mover el botón mientras esta estaba
     // en segundo plano.
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState !== 'visible' || drag) return;
-      const saved = parsePos(readCookie());
-      if (formatPos(saved) !== formatPos(pos)) {
-        pos = saved;
-        placeButton();
-        if (isOpen()) placePanel();
-      }
+      if (document.visibilityState !== 'visible') return;
+      fetchList()
+        .then(function (fresh) {
+          const saved = parsePos(fresh.position);
+          if (drag || formatPos(saved) === formatPos(pos)) return;
+          pos = saved;
+          placeButton();
+          if (isOpen()) placePanel();
+        })
+        .catch(function () {});
     });
 
     placeButton();
@@ -445,11 +445,7 @@
     if (window.top !== window.self) return;
     if (Math.min(screen.width, screen.height) < MIN_SCREEN) return;
     if (document.querySelector('domo-menu')) return;
-    fetch('/__menu/apps.json', { credentials: 'omit', cache: 'no-cache' })
-      .then(function (response) {
-        if (!response.ok) throw new Error(response.status);
-        return response.json();
-      })
+    fetchList()
       .then(function (data) {
         if (!document.querySelector('domo-menu')) render(data);
       })

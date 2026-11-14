@@ -20,7 +20,7 @@ navegador ──► Traefik ──► aplicación
 | Función | Estado |
 | --- | --- |
 | Botón flotante pegado al borde, que se puede mover por todo el perímetro con ratón o dedo | Hecho |
-| Misma posición del botón en todas las aplicaciones | Hecho |
+| Misma posición del botón en todas las aplicaciones, guardada en el servicio | Hecho |
 | Ventana con las aplicaciones que llevan el menú, con su icono y la actual marcada | Hecho |
 | Tema claro u oscuro, teclado; oculto en móviles | Hecho |
 | Clasificar las aplicaciones por categorías | Segunda iteración |
@@ -111,6 +111,8 @@ http:
           - url: http://menu:8080
 ```
 
+La posición del botón es una sola para toda la casa: el script la envía al servicio al soltar el botón (`PUT /__menu/posicion`) y la recibe con la lista. Así funciona también con dominios internos como `.internal`, donde el navegador no comparte cookies entre aplicaciones.
+
 Lee la API de Traefik por la entrada interna `traefik`, sin publicarla, que Traefik crea con `--api.insecure=true`. Si el panel ya se publica con su propia ruta, esa opción solo añade la entrada interna, que no debe publicarse.
 
 | Variable | Por defecto | Uso |
@@ -120,6 +122,7 @@ Lee la API de Traefik por la entrada interna `traefik`, sin publicarla, que Trae
 | `MENU_DOMINIO` | | Dominio común de las aplicaciones. Vacío: el script lo deduce quitando el principio del nombre de la página. |
 | `MENU_CACHE` | `30s` | Tiempo que se guarda la lista antes de volver a pedirla. |
 | `MENU_DIRECCION` | `:8080` | Dirección en la que escucha. |
+| `MENU_DATOS` | `/datos` | Carpeta donde guarda la posición del botón. Conviene montarla para que sobreviva a las actualizaciones. |
 
 Las rutas `` HostRegexp(`^nombre\.`) `` se enlazan con el dominio de la página actual y las `` Host(`nombre.completo`) ``, tal cual.
 

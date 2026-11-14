@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/juanjoi/domo-menu/internal/apps"
+	"github.com/juanjoi/domo-menu/internal/position"
 	"github.com/juanjoi/domo-menu/internal/web"
 	"github.com/juanjoi/domo-menu/script"
 )
@@ -75,12 +76,19 @@ func serve() error {
 		Middleware: env("MENU_MIDDLEWARE", "menu"),
 		TTL:        ttl,
 	}
+	pos := &position.Store{}
+	if dir := env("MENU_DATOS", "/datos"); dir != "" {
+		pos.File = position.FileIn(dir)
+	}
+	pos.Load()
+
 	srv := &http.Server{
 		Addr: addr,
 		Handler: web.Handler(web.Config{
-			Script: script.JS,
-			Apps:   source,
-			Domain: os.Getenv("MENU_DOMINIO"),
+			Script:   script.JS,
+			Apps:     source,
+			Position: pos,
+			Domain:   os.Getenv("MENU_DOMINIO"),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -94,7 +102,7 @@ func serve() error {
 		srv.Shutdown(shutdown)
 	}()
 
-	slog.Info("domo-menu escuchando", "direccion", addr, "api", source.API, "middleware", source.Middleware)
+	slog.Info("domo-menu escuchando", "direccion", addr, "api", source.API, "middleware", source.Middleware, "posicion", pos.File)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

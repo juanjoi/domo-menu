@@ -37,6 +37,8 @@ services:
       MENU_API_TRAEFIK: http://traefik:8080
       MENU_MIDDLEWARE: menu
       MENU_CACHE: 5s
+    volumes:
+      - menu-datos:/datos
 
   pruebas:
     build: ./pruebas
@@ -64,3 +66,4 @@ services:
 
 volumes:
   plugins:
+  menu-datos:
