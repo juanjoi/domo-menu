@@ -279,20 +279,22 @@
 
     const icon = document.createElement('span');
     icon.className = 'icon';
-    const initial = function () {
-      icon.textContent = app.name.charAt(0);
-    };
-    // El icono propio se sirve desde este mismo origen; el favicon, desde la
-    // otra aplicación, y una CSP puede bloquearlo.
+    // La inicial se ve desde el principio; la imagen la sustituye solo si
+    // carga. El icono propio se sirve desde este mismo origen; el favicon,
+    // desde la otra aplicación, que puede tardar, fallar o estar bloqueada
+    // por una CSP.
+    icon.textContent = app.name.charAt(0);
     const img = document.createElement('img');
     img.alt = '';
     img.decoding = 'async';
+    img.addEventListener('load', function () {
+      icon.textContent = '';
+      icon.appendChild(img);
+    });
     img.addEventListener('error', function () {
       if (app.icon && img.src.indexOf('favicon.ico') < 0) img.src = app.url + 'favicon.ico';
-      else initial();
     });
     img.src = app.icon || app.url + 'favicon.ico';
-    icon.appendChild(img);
 
     const name = document.createElement('span');
     name.textContent = app.name;
