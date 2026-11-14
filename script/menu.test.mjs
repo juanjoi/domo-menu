@@ -73,10 +73,37 @@ test('appUrl y appList', () => {
   assert.deepEqual(
     list.map((a) => ({ ...a })),
     [
-      { name: 'board', url: 'https://board.casa.example.com/', current: true },
-      { name: 'fotos', url: 'https://fotos.casa.example.com/', current: false },
+      { name: 'board', url: 'https://board.casa.example.com/', current: true, category: '', icon: '' },
+      { name: 'fotos', url: 'https://fotos.casa.example.com/', current: false, category: '', icon: '' },
     ]
   );
   assert.equal(menu.appList({ apps: [{ name: 'a' }] }, loc('192.168.1.2')).length, 0);
   assert.equal(menu.appList({}, loc('a.b.c')).length, 0);
+});
+
+test('appList usa el nombre visible, la categoría y el icono', () => {
+  const [app] = menu.appList(
+    { apps: [{ name: 'immich', title: 'Fotos', category: 'Familia', icon: '/__menu/iconos/immich.svg' }] },
+    loc('board.casa.example.com')
+  );
+  assert.equal(app.name, 'Fotos');
+  assert.equal(app.category, 'Familia');
+  assert.equal(app.icon, '/__menu/iconos/immich.svg');
+  assert.equal(app.url, 'https://immich.casa.example.com/');
+});
+
+test('groupApps', () => {
+  const a = (name, category) => ({ name, category });
+  const names = (groups) => JSON.parse(JSON.stringify(groups.map((g) => [g.name, g.apps.map((x) => x.name)])));
+  const cats = ['Infraestructura', 'Familia', 'Domótica'];
+
+  assert.deepEqual(names(menu.groupApps([a('fotos', 'Familia'), a('panel', 'Infraestructura'), a('raro', '')], cats)), [
+    ['Infraestructura', ['panel']],
+    ['Familia', ['fotos']],
+    ['Otras', ['raro']],
+  ]);
+  // Sin categorías, una lista plana sin encabezado.
+  assert.deepEqual(names(menu.groupApps([a('x', ''), a('y', '')], cats)), [['', ['x', 'y']]]);
+  assert.deepEqual(names(menu.groupApps([a('x', 'Familia')], [])), [['', ['x']]]);
+  assert.deepEqual(names(menu.groupApps([], cats)), []);
 });

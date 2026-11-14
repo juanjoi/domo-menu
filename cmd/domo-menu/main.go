@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -71,9 +72,13 @@ func serve() error {
 		return fmt.Errorf("MENU_CACHE: %w", err)
 	}
 	addr := env("MENU_DIRECCION", ":8080")
+	categories := splitList(os.Getenv("MENU_CATEGORIAS"))
+	icons := env("MENU_ICONOS", "/iconos")
 	source := &apps.Source{
 		API:        env("MENU_API_TRAEFIK", "http://traefik:8080"),
-		Middleware: env("MENU_MIDDLEWARE", "menu"),
+		Plugin:     env("MENU_PLUGIN", "menu"),
+		Categories: categories,
+		IconDir:    icons,
 		TTL:        ttl,
 	}
 	pos := &position.Store{}
@@ -85,10 +90,12 @@ func serve() error {
 	srv := &http.Server{
 		Addr: addr,
 		Handler: web.Handler(web.Config{
-			Script:   script.JS,
-			Apps:     source,
-			Position: pos,
-			Domain:   os.Getenv("MENU_DOMINIO"),
+			Script:     script.JS,
+			Apps:       source,
+			Position:   pos,
+			Domain:     os.Getenv("MENU_DOMINIO"),
+			Categories: categories,
+			IconDir:    icons,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -102,11 +109,23 @@ func serve() error {
 		srv.Shutdown(shutdown)
 	}()
 
-	slog.Info("domo-menu escuchando", "direccion", addr, "api", source.API, "middleware", source.Middleware, "posicion", pos.File)
+	slog.Info("domo-menu escuchando", "direccion", addr, "api", source.API, "plugin", source.Plugin,
+		"categorias", categories, "iconos", icons, "posicion", pos.File)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
+}
+
+// splitList splits a comma separated list, ignoring empty items.
+func splitList(s string) []string {
+	var list []string
+	for _, item := range strings.Split(s, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			list = append(list, item)
+		}
+	}
+	return list
 }
 
 // installPlugin replaces the plugin in Traefik's local plugins folder with

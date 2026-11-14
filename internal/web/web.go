@@ -11,6 +11,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/juanjoi/domo-menu/internal/apps"
@@ -36,13 +38,18 @@ type Config struct {
 	// Domain is the common domain of the applications. Empty lets the
 	// script deduce it from the current page.
 	Domain string
-	Log    *slog.Logger
+	// Categories, in the order the menu shows them.
+	Categories []string
+	// IconDir is the folder with the icons; empty for none.
+	IconDir string
+	Log     *slog.Logger
 }
 
 type listing struct {
-	Domain   string     `json:"domain,omitempty"`
-	Position string     `json:"position"`
-	Apps     []apps.App `json:"apps"`
+	Domain     string     `json:"domain,omitempty"`
+	Position   string     `json:"position"`
+	Categories []string   `json:"categories"`
+	Apps       []apps.App `json:"apps"`
 }
 
 // Handler serves the script, the list, the button position and a health
@@ -66,7 +73,11 @@ func Handler(cfg Config) http.Handler {
 			http.Error(w, "lista de aplicaciones no disponible", http.StatusBadGateway)
 			return
 		}
-		body, err := json.Marshal(listing{Domain: cfg.Domain, Position: cfg.Position.Get(), Apps: list})
+		categories := cfg.Categories
+		if categories == nil {
+			categories = []string{}
+		}
+		body, err := json.Marshal(listing{Domain: cfg.Domain, Position: cfg.Position.Get(), Categories: categories, Apps: list})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -90,6 +101,30 @@ func Handler(cfg Config) http.Handler {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+	mux.HandleFunc("GET /__menu/iconos/{file}", func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("file")
+		if cfg.IconDir == "" || !apps.ValidIconName(name) {
+			http.NotFound(w, r)
+			return
+		}
+		f, err := os.Open(filepath.Join(cfg.IconDir, name))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+		info, err := f.Stat()
+		if err != nil || !info.Mode().IsRegular() {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", iconTypes[filepath.Ext(name)])
+		w.Header().Set("Cache-Control", "no-cache")
+		// Served from the origin of every application: an SVG opened on its
+		// own must not run anything there.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+		http.ServeContent(w, r, "", info.ModTime(), f)
+	})
 	mux.HandleFunc("GET /__menu/salud", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte("ok\n"))
@@ -108,6 +143,12 @@ func serve(w http.ResponseWriter, r *http.Request, contentType, tag string, body
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("ETag", tag)
 	http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(body))
+}
+
+var iconTypes = map[string]string{
+	".svg":  "image/svg+xml",
+	".png":  "image/png",
+	".webp": "image/webp",
 }
 
 func etag(b []byte) string {

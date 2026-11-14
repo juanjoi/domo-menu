@@ -23,7 +23,7 @@ navegador ──► Traefik ──► aplicación
 | Misma posición del botón en todas las aplicaciones, guardada en el servicio | Hecho |
 | Ventana con las aplicaciones que llevan el menú, con su icono y la actual marcada | Hecho |
 | Tema claro u oscuro, teclado; oculto en móviles | Hecho |
-| Clasificar las aplicaciones por categorías | Segunda iteración |
+| Aplicaciones agrupadas por categorías, con nombre visible e icono propio | Hecho |
 
 El porqué de cada cosa está en [requisitos](docs/requisitos.md) y [decisiones](docs/decisiones.md), y el avance en el [plan](docs/plan.md).
 
@@ -89,6 +89,24 @@ labels:
 
 Las rutas declaradas en ficheros hacen lo mismo con `middlewares: [compress, menu]`. Poner el middleware añade la aplicación a la lista; quitarlo la saca.
 
+Para darle categoría, nombre visible o icono, la aplicación usa su propia instancia del middleware, con esas opciones, en vez de la común:
+
+```yaml
+labels:
+  - traefik.http.middlewares.miapp-menu.plugin.menu.categoria=Familia
+  - traefik.http.middlewares.miapp-menu.plugin.menu.nombre=Mi aplicación
+  - traefik.http.middlewares.miapp-menu.plugin.menu.icono=miapp.svg
+  - traefik.http.routers.miapp.middlewares=compress@file,miapp-menu
+```
+
+| Opción | Uso |
+| --- | --- |
+| `categoria` | Una de las de `MENU_CATEGORIAS`, sin importar mayúsculas. Sin ella, o con otra, la aplicación sale al final, en «Otras». |
+| `nombre` | Nombre en el menú. Sin él, el principio del nombre de la ruta. |
+| `icono` | Fichero SVG, PNG o WebP de la carpeta de iconos. Sin él, o si no existe, el favicon de la aplicación y, si tampoco carga, su inicial. |
+
+El servicio reconoce estas instancias porque son del tipo del plugin, sin importar su nombre, y las lee de la API de Traefik.
+
 ### Servicio
 
 El servicio necesita su ruta en todos los nombres, por encima de las de las aplicaciones y sin las cookies ni las credenciales de estas:
@@ -121,7 +139,9 @@ Lee la API de Traefik por la entrada interna `traefik`, sin publicarla, que Trae
 | Variable | Por defecto | Uso |
 | --- | --- | --- |
 | `MENU_API_TRAEFIK` | `http://traefik:8080` | Dirección de la API de Traefik. |
-| `MENU_MIDDLEWARE` | `menu` | Middleware que marca las aplicaciones del menú. Sin `@proveedor`, vale cualquiera. |
+| `MENU_PLUGIN` | `menu` | Nombre del plugin en la configuración estática de Traefik: los middlewares de ese tipo marcan las aplicaciones del menú. |
+| `MENU_CATEGORIAS` | | Categorías, separadas por comas, en el orden del menú. Vacía: lista sin agrupar. |
+| `MENU_ICONOS` | `/iconos` | Carpeta con los iconos. Se sirven en `/__menu/iconos/`, en el mismo origen que cada aplicación, así que las CSP no los bloquean. |
 | `MENU_DOMINIO` | | Dominio común de las aplicaciones. Vacío: el script lo deduce quitando el principio del nombre de la página. |
 | `MENU_CACHE` | `30s` | Tiempo que se guarda la lista antes de volver a pedirla. |
 | `MENU_DIRECCION` | `:8080` | Dirección en la que escucha. |
@@ -144,6 +164,8 @@ dev/comprobar.sh                     # prueba de humo contra Traefik
 El entorno local levanta Traefik en la misma versión que el hub, con el plugin instalado como en producción, el servicio y una aplicación de pruebas publicada con varios nombres. Cada nombre cubre un caso difícil: compresión, CSP, fragmentos HTML, iframes, websockets, descargas, una ruta declarada en fichero y otra sin menú. Se abre en el navegador en `http://sencilla.menu.localhost:8000`; cada página explica qué hay que comprobar en ella. El panel de Traefik está en `http://traefik.menu.localhost:8000/dashboard/`.
 
 Al cambiar el plugin hay que reconstruir y reiniciar Traefik: `docker compose -f dev/compose.yml up -d --build && docker compose -f dev/compose.yml restart traefik`.
+
+La lista con categorías, nombres e iconos está en `/__menu/apps.json`, también para otras aplicaciones del hub que la pidan por la red interna.
 
 Una versión se publica etiquetando `vX.Y.Z`: GitHub Actions pasa las pruebas y la prueba de humo y sube la imagen.
 

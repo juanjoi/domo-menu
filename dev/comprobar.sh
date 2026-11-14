@@ -40,6 +40,14 @@ comprueba "lista sin la aplicación sin middleware" \
 comprueba "lista con la ruta de fichero" \
   "$(curl -s -H 'Host: csp.menu.localhost' "$BASE/__menu/apps.json" | grep -c '"fichero"')" 1
 
+lista=$(curl -s -H 'Host: csp.menu.localhost' "$BASE/__menu/apps.json")
+comprueba "categorías en la lista" "$(echo "$lista" | grep -c '"categories":\["Infraestructura","Familia","Domótica"\]')" 1
+comprueba "categoría escrita de otra forma" "$(echo "$lista" | grep -c '"name":"csp","category":"Familia"')" 1
+comprueba "nombre visible e icono" "$(echo "$lista" | grep -c '"title":"Página sencilla","category":"Familia","icon":"/__menu/iconos/sencilla.svg"')" 1
+comprueba "categoría desconocida e icono que no existe" "$(echo "$lista" | grep -c '"name":"completo","host":"completo.menu.localhost"}')" 1
+comprueba "icono servido" "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' -H 'Host: csp.menu.localhost' "$BASE/__menu/iconos/csp.svg")" "200 image/svg+xml"
+comprueba "icono que no existe" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: csp.menu.localhost' "$BASE/__menu/iconos/no-existe.svg")" 404
+comprueba "nombre de icono no válido" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: csp.menu.localhost' "$BASE/__menu/iconos/..%2Fcompose.yml")" 404
 comprueba "posición guardada" "$(curl -s -o /dev/null -w '%{http_code}' -X PUT --data 'left:0.250' -H 'Host: csp.menu.localhost' "$BASE/__menu/posicion")" 204
 comprueba "posición en la lista desde otra aplicación" \
   "$(curl -s -H 'Host: sencilla.menu.localhost' "$BASE/__menu/apps.json" | grep -c '"position":"left:0.250"')" 1

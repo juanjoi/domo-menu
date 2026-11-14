@@ -20,6 +20,12 @@ type Config struct {
 	// MaxHeadSize is how many bytes are buffered looking for </head>.
 	// Pages whose </head> comes later pass through untouched.
 	MaxHeadSize int `json:"maxHeadSize,omitempty"`
+
+	// Categoria, Nombre and Icono describe the application in the menu list.
+	// The plugin ignores them: the menu service reads them from Traefik's API.
+	Categoria string `json:"categoria,omitempty"`
+	Nombre    string `json:"nombre,omitempty"`
+	Icono     string `json:"icono,omitempty"`
 }
 
 // CreateConfig returns the default configuration.

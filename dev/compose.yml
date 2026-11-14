@@ -35,10 +35,11 @@ services:
     build: ..
     environment:
       MENU_API_TRAEFIK: http://traefik:8080
-      MENU_MIDDLEWARE: menu
+      MENU_CATEGORIAS: Infraestructura, Familia, Domótica
       MENU_CACHE: 5s
     volumes:
       - menu-datos:/datos
+      - ./iconos:/iconos:ro
 
   pruebas:
     build: ./pruebas
@@ -46,11 +47,18 @@ services:
       traefik.enable: "true"
       traefik.http.services.pruebas.loadbalancer.server.port: "8080"
       traefik.http.routers.sencilla.rule: HostRegexp(`^sencilla\.`)
-      traefik.http.routers.sencilla.middlewares: compress@file,menu@file
+      # Cada aplicación con datos para el menú tiene su propia instancia del
+      # middleware; las demás usan el común, menu@file, y salen en «Otras».
+      traefik.http.middlewares.sencilla-menu.plugin.menu.categoria: Familia
+      traefik.http.middlewares.sencilla-menu.plugin.menu.nombre: Página sencilla
+      traefik.http.middlewares.sencilla-menu.plugin.menu.icono: sencilla.svg
+      traefik.http.routers.sencilla.middlewares: compress@file,sencilla-menu
       traefik.http.routers.compresion.rule: HostRegexp(`^compresion\.`)
       traefik.http.routers.compresion.middlewares: compress@file,menu@file
       traefik.http.routers.csp.rule: HostRegexp(`^csp\.`)
-      traefik.http.routers.csp.middlewares: compress@file,menu@file
+      traefik.http.middlewares.csp-menu.plugin.menu.categoria: familia
+      traefik.http.middlewares.csp-menu.plugin.menu.icono: csp.svg
+      traefik.http.routers.csp.middlewares: compress@file,csp-menu
       traefik.http.routers.cspnonce.rule: HostRegexp(`^cspnonce\.`)
       traefik.http.routers.cspnonce.middlewares: compress@file,menu@file
       traefik.http.routers.fragmentos.rule: HostRegexp(`^fragmentos\.`)
@@ -58,9 +66,13 @@ services:
       traefik.http.routers.iframe.rule: HostRegexp(`^iframe\.`)
       traefik.http.routers.iframe.middlewares: compress@file,menu@file
       traefik.http.routers.websocket.rule: HostRegexp(`^websocket\.`)
-      traefik.http.routers.websocket.middlewares: compress@file,menu@file
+      traefik.http.middlewares.websocket-menu.plugin.menu.categoria: Domótica
+      traefik.http.middlewares.websocket-menu.plugin.menu.icono: websocket.svg
+      traefik.http.routers.websocket.middlewares: compress@file,websocket-menu
       traefik.http.routers.completo.rule: Host(`completo.menu.localhost`)
-      traefik.http.routers.completo.middlewares: compress@file,menu@file
+      traefik.http.middlewares.completo-menu.plugin.menu.categoria: Inventada
+      traefik.http.middlewares.completo-menu.plugin.menu.icono: no-existe.svg
+      traefik.http.routers.completo.middlewares: compress@file,completo-menu
       traefik.http.routers.sinmenu.rule: HostRegexp(`^sinmenu\.`)
       traefik.http.routers.sinmenu.middlewares: compress@file
 

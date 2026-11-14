@@ -6,6 +6,16 @@ http:
     menu:
       plugin:
         menu: {}
+    traefik-menu:
+      plugin:
+        menu:
+          categoria: Infraestructura
+          nombre: Panel de Traefik
+          icono: traefik.svg
+    fichero-menu:
+      plugin:
+        menu:
+          categoria: Infraestructura
     # Solo texto: los vídeos, fotos y descargas ya vienen comprimidos o no
     # ganan nada, y comprimirlos gasta CPU.
     compress:
@@ -36,11 +46,11 @@ http:
     traefik:
       rule: HostRegexp(`^traefik\.`)
       service: api@internal
-      middlewares: [compress, menu]
+      middlewares: [compress, traefik-menu]
     fichero:
       rule: HostRegexp(`^fichero\.`)
       service: pruebas
-      middlewares: [compress, menu]
+      middlewares: [compress, fichero-menu]
 
   services:
     menu:

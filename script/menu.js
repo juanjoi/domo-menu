@@ -105,11 +105,39 @@
       .map(function (app) {
         const url = appUrl(app, location, domain);
         const host = url ? new URL(url).hostname : '';
-        return { name: app.name, url: url, current: host === current };
+        return {
+          name: app.title || app.name,
+          url: url,
+          current: host === current,
+          category: app.category || '',
+          icon: app.icon || '',
+        };
       })
       .filter(function (app) {
         return app.url;
       });
+  }
+
+  // Agrupa las aplicaciones en el orden de las categorías, con las que no
+  // tienen al final, en «Otras». Si ninguna tiene categoría, un solo grupo sin
+  // nombre: la lista sale plana.
+  function groupApps(apps, categories) {
+    const groups = (categories || []).map(function (name) {
+      return { name: name, apps: [] };
+    });
+    const others = { name: 'Otras', apps: [] };
+    apps.forEach(function (app) {
+      const group = groups.filter(function (g) {
+        return g.name === app.category;
+      })[0];
+      (group || others).apps.push(app);
+    });
+    const result = groups.filter(function (g) {
+      return g.apps.length;
+    });
+    if (!result.length) return others.apps.length ? [{ name: '', apps: others.apps }] : [];
+    if (others.apps.length) result.push(others);
+    return result;
   }
 
   // --- Navegador ---
@@ -175,7 +203,12 @@
       margin: 0; padding: 12px 16px 8px; font-size: 12px; font-weight: 600;
       letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
     }
-    ul { list-style: none; margin: 0; padding: 0 8px 8px; overflow-y: auto; }
+    .list { overflow-y: auto; padding: 0 8px 8px; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    .group {
+      margin: 8px 8px 4px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+    }
     a {
       display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 8px;
       border-radius: 8px; color: var(--fg); text-decoration: none;
@@ -249,11 +282,16 @@
     const initial = function () {
       icon.textContent = app.name.charAt(0);
     };
+    // El icono propio se sirve desde este mismo origen; el favicon, desde la
+    // otra aplicación, y una CSP puede bloquearlo.
     const img = document.createElement('img');
     img.alt = '';
     img.decoding = 'async';
-    img.addEventListener('error', initial);
-    img.src = app.url + 'favicon.ico';
+    img.addEventListener('error', function () {
+      if (app.icon && img.src.indexOf('favicon.ico') < 0) img.src = app.url + 'favicon.ico';
+      else initial();
+    });
+    img.src = app.icon || app.url + 'favicon.ico';
     icon.appendChild(img);
 
     const name = document.createElement('span');
@@ -293,7 +331,8 @@
     const title = document.createElement('p');
     title.className = 'title';
     title.textContent = 'Aplicaciones';
-    const list = document.createElement('ul');
+    const list = document.createElement('div');
+    list.className = 'list';
     panel.appendChild(title);
     panel.appendChild(list);
 
@@ -331,8 +370,20 @@
 
     function open() {
       if (!loaded) {
-        apps.forEach(function (app) {
-          list.appendChild(appItem(app));
+        groupApps(apps, data.categories).forEach(function (group, i) {
+          const ul = document.createElement('ul');
+          if (group.name) {
+            const heading = document.createElement('p');
+            heading.className = 'group';
+            heading.id = 'grupo-' + i;
+            heading.textContent = group.name;
+            ul.setAttribute('aria-labelledby', heading.id);
+            list.appendChild(heading);
+          }
+          group.apps.forEach(function (app) {
+            ul.appendChild(appItem(app));
+          });
+          list.appendChild(ul);
         });
         loaded = true;
       }
@@ -463,6 +514,7 @@
       panelPlacement: panelPlacement,
       appUrl: appUrl,
       appList: appList,
+      groupApps: groupApps,
     });
     return;
   }

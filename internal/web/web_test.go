@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -51,7 +53,7 @@ func TestScript(t *testing.T) {
 func TestApps(t *testing.T) {
 	h := Handler(Config{Apps: fakeApps{list: []apps.App{{Name: "a"}, {Name: "b", Host: "b.example.com"}}}, Domain: "example.com", Position: &position.Store{}})
 	rec := do(h, "GET", "/__menu/apps.json", nil)
-	want := `{"domain":"example.com","position":"right:0.500","apps":[{"name":"a"},{"name":"b","host":"b.example.com"}]}`
+	want := `{"domain":"example.com","position":"right:0.500","categories":[],"apps":[{"name":"a"},{"name":"b","host":"b.example.com"}]}`
 	if rec.Code != 200 || rec.Body.String() != want {
 		t.Fatalf("code %d, body %s", rec.Code, rec.Body.String())
 	}
@@ -97,5 +99,41 @@ func TestPosition(t *testing.T) {
 	}
 	if store.Get() != "left:0.250" {
 		t.Fatalf("invalid values changed it: %q", store.Get())
+	}
+}
+
+func TestCategories(t *testing.T) {
+	h := Handler(Config{Apps: fakeApps{list: []apps.App{{Name: "a", Category: "Familia"}}}, Categories: []string{"Familia", "Domótica"}, Position: &position.Store{}})
+	rec := do(h, "GET", "/__menu/apps.json", nil)
+	if !strings.Contains(rec.Body.String(), `"categories":["Familia","Domótica"]`) || !strings.Contains(rec.Body.String(), `"category":"Familia"`) {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+}
+
+func TestIcons(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.svg"), []byte("<svg/>"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.png"), []byte("png"), 0o644)
+	os.WriteFile(filepath.Join(dir, "c.html"), []byte("<script>"), 0o644)
+	os.Mkdir(filepath.Join(dir, "d.svg"), 0o755)
+	h := Handler(Config{Apps: fakeApps{}, Position: &position.Store{}, IconDir: dir})
+
+	rec := do(h, "GET", "/__menu/iconos/a.svg", nil)
+	if rec.Code != 200 || rec.Body.String() != "<svg/>" || rec.Header().Get("Content-Type") != "image/svg+xml" {
+		t.Fatalf("svg: code %d, %v", rec.Code, rec.Header())
+	}
+	if !strings.Contains(rec.Header().Get("Content-Security-Policy"), "sandbox") {
+		t.Fatal("svg without restrictive CSP")
+	}
+	if rec := do(h, "GET", "/__menu/iconos/b.png", nil); rec.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("png: %v", rec.Header())
+	}
+	for _, path := range []string{"/__menu/iconos/c.html", "/__menu/iconos/no.svg", "/__menu/iconos/d.svg", "/__menu/iconos/..%2Fweb.go", "/__menu/iconos/"} {
+		if rec := do(h, "GET", path, nil); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: code %d", path, rec.Code)
+		}
+	}
+	if rec := do(Handler(Config{Apps: fakeApps{}, Position: &position.Store{}}), "GET", "/__menu/iconos/a.svg", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("without icon folder: code %d", rec.Code)
 	}
 }
