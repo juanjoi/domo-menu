@@ -1,0 +1,8 @@
+displayName: Domo menu
+type: middleware
+import: github.com/juanjoi/domo-menu
+basePkg: domomenu
+summary: Inserta el script del menú común del hub en las páginas HTML.
+
+testData:
+  scriptPath: /__menu/menu.js
