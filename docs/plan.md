@@ -9,7 +9,7 @@ Pasos hasta la primera versión, en orden. Cada fase termina con algo que se pue
 | 2. Plugin | Hecho |
 | 3. Servicio | Hecho |
 | 4. Script | Hecho |
-| 5. Primera versión | Falta subir el repositorio a GitHub y etiquetar `v0.1.0` |
+| 5. Primera versión | Hecho: `v0.1.0`. Falta el despliegue en el repositorio de despliegue |
 
 ## 0. Cerrar decisiones
 
