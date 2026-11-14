@@ -1,0 +1,66 @@
+# Entorno local: Traefik con el plugin, el servicio del menú y una aplicación
+# de pruebas publicada con varios nombres. Ver el README.
+name: domo-menu-dev
+
+services:
+  traefik:
+    image: traefik:v3.7.17
+    command:
+      - --entrypoints.web.address=:80
+      # API y panel en la entrada interna "traefik" (puerto 8080), sin publicar.
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.filename=/etc/traefik/dinamica.yml
+      - --experimental.localplugins.menu.modulename=github.com/juanjoi/domo-menu
+      - --log.level=INFO
+    ports:
+      - "8000:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dinamica.yml:/etc/traefik/dinamica.yml:ro
+      - plugins:/plugins-local
+    depends_on:
+      plugin:
+        condition: service_completed_successfully
+
+  # Copia el plugin de la imagen al volumen de Traefik antes de que arranque.
+  plugin:
+    build: ..
+    command: ["instalar-plugin", "/plugins-local"]
+    volumes:
+      - plugins:/plugins-local
+
+  menu:
+    build: ..
+    environment:
+      MENU_API_TRAEFIK: http://traefik:8080
+      MENU_MIDDLEWARE: menu
+      MENU_CACHE: 5s
+
+  pruebas:
+    build: ./pruebas
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.pruebas.loadbalancer.server.port: "8080"
+      traefik.http.routers.sencilla.rule: HostRegexp(`^sencilla\.`)
+      traefik.http.routers.sencilla.middlewares: compress@file,menu@file
+      traefik.http.routers.compresion.rule: HostRegexp(`^compresion\.`)
+      traefik.http.routers.compresion.middlewares: compress@file,menu@file
+      traefik.http.routers.csp.rule: HostRegexp(`^csp\.`)
+      traefik.http.routers.csp.middlewares: compress@file,menu@file
+      traefik.http.routers.cspnonce.rule: HostRegexp(`^cspnonce\.`)
+      traefik.http.routers.cspnonce.middlewares: compress@file,menu@file
+      traefik.http.routers.fragmentos.rule: HostRegexp(`^fragmentos\.`)
+      traefik.http.routers.fragmentos.middlewares: compress@file,menu@file
+      traefik.http.routers.iframe.rule: HostRegexp(`^iframe\.`)
+      traefik.http.routers.iframe.middlewares: compress@file,menu@file
+      traefik.http.routers.websocket.rule: HostRegexp(`^websocket\.`)
+      traefik.http.routers.websocket.middlewares: compress@file,menu@file
+      traefik.http.routers.completo.rule: Host(`completo.menu.localhost`)
+      traefik.http.routers.completo.middlewares: compress@file,menu@file
+      traefik.http.routers.sinmenu.rule: HostRegexp(`^sinmenu\.`)
+      traefik.http.routers.sinmenu.middlewares: compress@file
+
+volumes:
+  plugins:

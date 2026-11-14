@@ -1,0 +1,42 @@
+# Configuración dinámica de Traefik del entorno local.
+http:
+  middlewares:
+    # El menú. Va después de compress en la lista de middlewares de cada
+    # aplicación, para que Traefik comprima la página ya con el script.
+    menu:
+      plugin:
+        menu: {}
+    compress:
+      compress: {}
+    # El servicio del menú no recibe cookies ni credenciales de las aplicaciones.
+    menu-sin-credenciales:
+      headers:
+        customRequestHeaders:
+          Cookie: ""
+          Authorization: ""
+
+  routers:
+    # /__menu/ en cualquier nombre, por encima de las rutas de las aplicaciones.
+    menu:
+      rule: PathPrefix(`/__menu/`)
+      priority: 1000000
+      service: menu
+      middlewares: [menu-sin-credenciales]
+    traefik:
+      rule: HostRegexp(`^traefik\.`)
+      service: api@internal
+      middlewares: [compress, menu]
+    fichero:
+      rule: HostRegexp(`^fichero\.`)
+      service: pruebas
+      middlewares: [compress, menu]
+
+  services:
+    menu:
+      loadBalancer:
+        servers:
+          - url: http://menu:8080
+    pruebas:
+      loadBalancer:
+        servers:
+          - url: http://pruebas:8080
