@@ -14,7 +14,10 @@
 | RF-08 | **Sin rutas técnicas.** Las rutas que no son aplicaciones, como la del propio menú, no aparecen. Para sacar una aplicación de la lista basta con quitarle el middleware (D-16). |
 | RF-09 | **Aplicación actual.** La ventana marca la aplicación en la que se está. |
 | RF-10 | **Dispositivos.** Aparece en escritorio y en tablet, en cualquier orientación. En el móvil no aparece (D-17). |
-| RF-11 | **Categorías** (segunda iteración). Las aplicaciones se agrupan por categorías en la ventana. |
+| RF-11 | **Categorías** (segunda iteración). Las aplicaciones se agrupan por categorías en la ventana, en el orden de una lista fija de categorías definida en la configuración del servicio. Las que no tienen categoría, o tienen una que no está en la lista, van al final, en «Otras» (D-27). |
+| RF-13 | **Datos de cada aplicación** (segunda iteración). Cada aplicación puede indicar su categoría, un nombre visible y un icono en la configuración de su middleware del menú (D-25). Sin nombre visible se muestra el principio de su nombre. |
+| RF-14 | **Iconos de catálogo** (segunda iteración). El icono se elige por su nombre en un catálogo libre de iconos de aplicaciones y se sirve desde el mismo origen que la aplicación, para que lo admitan las CSP. Sin icono, o si no se puede conseguir, se usa el favicon y, si tampoco, la inicial (D-26). |
+| RF-15 | **Lista para otras aplicaciones** (segunda iteración). La lista, con categorías, nombres e iconos, se puede pedir por la red interna para mostrarla en otras aplicaciones del hub, como el panel de gestión. |
 | RF-12 | **Solo en la ventana principal.** Si la página está dentro de un iframe, el script no pinta nada, para que el menú no aparezca dos veces cuando una aplicación incrusta otra. |
 
 ## No funcionales

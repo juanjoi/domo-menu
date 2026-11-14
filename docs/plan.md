@@ -69,8 +69,12 @@ Resultado: el menú funciona en todas las aplicaciones de prueba, en escritorio 
 
 Después, en el repositorio de despliegue, añadir el middleware a las aplicaciones, empezando por un par de ellas (D-09).
 
-## Segunda iteración
+## Segunda iteración: categorías, nombres e iconos
 
-Categorías (RF-11) y nombres legibles.
+1. Cerrar P-18: catálogo de iconos.
+2. Servicio: reconocer las instancias del middleware por su tipo y leer su configuración (D-25); categorías de la configuración (D-27); iconos descargados y servidos bajo `/__menu/` (D-26). Añadir al entorno local aplicaciones con categoría, con nombre visible, con icono y sin nada.
+3. Script: ventana agrupada por categorías, con el nombre visible y el icono.
+4. Versión `v0.3.0` y, en el repositorio de despliegue, una instancia del middleware por aplicación.
+5. El panel de gestión muestra la misma lista (RF-15).
 
 [← Volver al README](../README.md)
