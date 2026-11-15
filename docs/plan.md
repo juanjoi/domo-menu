@@ -56,7 +56,7 @@ Resultado: el servicio devuelve la lista correcta del entorno local.
 - Posición en una cookie del dominio común (RF-05, D-18).
 - Ventana con la lista en orden alfabético, nombre y favicon con la inicial de reserva, la aplicación actual marcada y enlaces construidos con el dominio de la página (RF-06, RF-09, RNF-08, D-19, D-20).
 - Teclado, tamaño táctil y tema claro u oscuro (RNF-07).
-- No aparece en iframes (RF-12) ni en pantallas con el lado corto por debajo de 600 px (RF-10, D-17).
+- No aparece en iframes (RF-12). Aparece también en móviles (RF-10, D-30).
 - Si la lista no carga, no pinta nada y no deja errores que afecten a la aplicación (RNF-01).
 
 Resultado: el menú funciona en todas las aplicaciones de prueba, en escritorio y en tablet.

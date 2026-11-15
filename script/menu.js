@@ -17,7 +17,6 @@
   const SIZE = 2 * Math.ceil(Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(LIFT + RADIUS - FILLET, 2)));
   const PANEL_WIDTH = 304; // tres mosaicos por fila
   const GAP = 8; // separación entre el botón y la ventana
-  const MIN_SCREEN = 600; // lado corto mínimo de la pantalla
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
   const DEFAULT_POS = { edge: 'right', offset: 0.5 };
   const EDGES = ['top', 'right', 'bottom', 'left'];
@@ -262,7 +261,7 @@
     .button[aria-expanded="true"] .shape { fill: var(--accent); }
     .button[aria-expanded="true"] .glyph { fill: #ffffff; }
     .panel {
-      position: fixed; width: ${PANEL_WIDTH}px; max-height: min(520px, calc(100vh - 16px));
+      position: fixed; width: min(${PANEL_WIDTH}px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 16px));
       display: flex; flex-direction: column; margin: 0; padding: 0;
       background: var(--bg); border: 1px solid var(--line); border-radius: 16px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); overflow: hidden;
@@ -597,7 +596,6 @@
 
   function init() {
     if (window.top !== window.self) return;
-    if (Math.min(screen.width, screen.height) < MIN_SCREEN) return;
     if (document.querySelector('domo-menu')) return;
     fetchList()
       .then(function (data) {

@@ -22,7 +22,7 @@ navegador ──► Traefik ──► aplicación
 | Botón flotante pegado al borde, que se puede mover por todo el perímetro con ratón o dedo | Hecho |
 | Misma posición del botón en todas las aplicaciones, guardada en el servicio | Hecho |
 | Ventana con las aplicaciones que llevan el menú, con su icono y la actual marcada | Hecho |
-| Tema claro u oscuro, teclado; oculto en móviles | Hecho |
+| Tema claro u oscuro, teclado; también en móviles | Hecho |
 | Aplicaciones agrupadas por categorías, con nombre visible e icono propio | Hecho |
 | Botón en forma de círculo que sale del borde, y ventana con mosaicos de tres en tres | Hecho |
 
