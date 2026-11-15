@@ -37,30 +37,37 @@ test('snap pega el botón al borde más cercano', () => {
   assert.deepEqual({ ...menu.snap(999, 799, 1000, 800, 44) }, { edge: 'right', offset: 1 });
 });
 
-test('placement nunca separa el botón del perímetro', () => {
-  assert.deepEqual({ ...menu.placement({ edge: 'right', offset: 0.5 }, 1000, 800, 44) }, { x: 956, y: 378 });
-  assert.deepEqual({ ...menu.placement({ edge: 'left', offset: 0 }, 1000, 800, 44) }, { x: 0, y: 0 });
-  assert.deepEqual({ ...menu.placement({ edge: 'bottom', offset: 1 }, 1000, 800, 44) }, { x: 956, y: 756 });
-  assert.deepEqual({ ...menu.placement({ edge: 'top', offset: 0.5 }, 1000, 800, 44) }, { x: 478, y: 0 });
+test('buttonCenter deja el círculo a 26 px del borde', () => {
+  // Pantalla de 1000 x 800; el botón mide 72 a lo largo del borde.
+  assert.deepEqual({ ...menu.buttonCenter({ edge: 'right', offset: 0.5 }, 1000, 800) }, { x: 974, y: 400 });
+  assert.deepEqual({ ...menu.buttonCenter({ edge: 'left', offset: 0 }, 1000, 800) }, { x: 26, y: 36 });
+  assert.deepEqual({ ...menu.buttonCenter({ edge: 'bottom', offset: 1 }, 1000, 800) }, { x: 964, y: 774 });
+  assert.deepEqual({ ...menu.buttonCenter({ edge: 'top', offset: 0.5 }, 1000, 800) }, { x: 500, y: 26 });
 });
 
-test('snap y placement son inversos', () => {
+test('snap y buttonCenter son inversos', () => {
   for (const edge of ['top', 'right', 'bottom', 'left']) {
     for (const offset of [0, 0.3, 1]) {
-      const p = menu.placement({ edge, offset }, 1000, 800, 44);
-      const s = menu.snap(p.x + 22, p.y + 22, 1000, 800, 44);
-      // En las esquinas dos bordes empatan: lo que importa es el punto.
-      const back = menu.placement(s, 1000, 800, 44);
-      assert.deepEqual({ ...back }, { ...p }, `${edge}:${offset}`);
+      const c = menu.buttonCenter({ edge, offset }, 1000, 800);
+      const back = menu.snap(c.x, c.y, 1000, 800, 72);
+      assert.deepEqual({ ...back }, { edge, offset }, `${edge}:${offset}`);
     }
   }
 });
 
-test('panelPlacement queda dentro de la pantalla', () => {
-  const p = menu.panelPlacement({ edge: 'right', offset: 1 }, { x: 956, y: 756 }, 260, 300, 1000, 800);
-  assert.deepEqual({ ...p }, { x: 688, y: 492 });
-  const q = menu.panelPlacement({ edge: 'left', offset: 0 }, { x: 0, y: 0 }, 260, 300, 1000, 800);
-  assert.deepEqual({ ...q }, { x: 56, y: 8 });
+test('openShape cabe en la pantalla y deja el botón en la cabecera', () => {
+  // Borde derecho, botón a media altura: la ventana se centra en la cabecera.
+  const g = menu.openShape('right', 400, 1000, 800, 384, 300);
+  assert.deepEqual({ ...g }, { depth: 384, s0: 374, s1: 674, r: 20, spread: 20 });
+  // Botón abajo del todo: la ventana sube para caber.
+  const low = menu.openShape('right', 790, 1000, 800, 384, 300);
+  assert.equal(low.s1, 800 - 28);
+  // Contenido más alto que la pantalla: se recorta.
+  const tall = menu.openShape('left', 400, 1000, 600, 384, 2000);
+  assert.deepEqual([tall.s0, tall.s1], [28, 572]);
+  // Pantalla estrecha, borde de abajo: el ancho se recorta.
+  const narrow = menu.openShape('bottom', 180, 360, 800, 384, 300);
+  assert.deepEqual([narrow.s0, narrow.s1, narrow.depth], [28, 332, 300]);
 });
 
 test('appUrl y appList', () => {
@@ -108,23 +115,40 @@ test('groupApps', () => {
   assert.deepEqual(names(menu.groupApps([], cats)), []);
 });
 
-test('buttonShape', () => {
+test('outline', () => {
   const nums = (d) => d.match(/-?[\d.]+/g).map(Number);
-  for (const edge of ['top', 'right', 'bottom', 'left']) {
-    const s = menu.buttonShape(edge, true);
-    const vertical = edge === 'left' || edge === 'right';
-    // Sale 48 px del borde y mide 62 a lo largo de él.
-    assert.deepEqual([s.width, s.height], vertical ? [48, 62] : [62, 48], edge);
-    // Empieza y acaba sobre el borde, en los extremos del botón.
-    const n = nums(s.d);
-    const first = n.slice(0, 2);
-    const last = n.slice(-2);
-    const onEdge = { left: (p) => p[0] === 0, right: (p) => p[0] === 48, top: (p) => p[1] === 0, bottom: (p) => p[1] === 48 }[edge];
-    assert.ok(onEdge(first) && onEdge(last), edge + ' ' + s.d);
-    // El círculo, a 26 px del borde y en el centro a lo largo.
-    const center = { left: [26, 31], right: [22, 31], top: [31, 26], bottom: [31, 22] }[edge];
-    assert.deepEqual([s.cx, s.cy], center, edge);
-    // Suelto, solo el círculo.
-    assert.ok(!menu.buttonShape(edge, false).d.includes(' 0 0 0 '), edge);
-  }
+  const pairs = (d) => {
+    const n = nums(d.replace(/A [\d.]+ [\d.]+ 0 0 [01]/g, 'A'));
+    const out = [];
+    for (let i = 0; i < n.length; i += 2) out.push([n[i], n[i + 1]]);
+    return out;
+  };
+  const closed = menu.closedShape(400);
+  // Borde izquierdo: empieza y acaba en el borde, a 36 px del centro.
+  let pts = pairs(menu.outline('left', 1000, 800, closed));
+  assert.deepEqual(pts[0], [0, 364]);
+  assert.deepEqual(pts.at(-1), [0, 436]);
+  // Las curvas llegan arriba y abajo del círculo, sobre su centro (26 px).
+  assert.ok(pts.some((p) => p[0] === 26 && p[1] === 378));
+  assert.ok(pts.some((p) => p[0] === 26 && p[1] === 422));
+  // Y el punto más lejano del borde es el del círculo: 48 px.
+  assert.equal(Math.max(...pts.map((p) => p[0])), 48);
+
+  // Borde derecho: lo mismo reflejado, con los arcos al revés.
+  const right = menu.outline('right', 1000, 800, closed);
+  pts = pairs(right);
+  assert.deepEqual(pts[0], [1000, 364]);
+  assert.equal(Math.min(...pts.map((p) => p[0])), 952);
+  assert.match(right, / A 22 22 0 0 0 /);
+  assert.match(menu.outline('left', 1000, 800, closed), / A 22 22 0 0 1 /);
+
+  // Borde de arriba: las curvas llegan a los lados del círculo.
+  pts = pairs(menu.outline('top', 1000, 800, closed));
+  assert.deepEqual(pts[0], [364, 0]);
+  assert.ok(pts.some((p) => p[0] === 378 && p[1] === 26));
+
+  // Abierta: el rectángulo de la ventana.
+  const open = menu.openShape('bottom', 500, 1000, 800, 384, 300);
+  pts = pairs(menu.outline('bottom', 1000, 800, open));
+  assert.equal(Math.min(...pts.map((p) => p[1])), 800 - 4 - 300);
 });

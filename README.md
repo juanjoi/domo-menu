@@ -24,7 +24,7 @@ navegador ──► Traefik ──► aplicación
 | Ventana con las aplicaciones que llevan el menú, con su icono y la actual marcada | Hecho |
 | Tema claro u oscuro, teclado; también en móviles | Hecho |
 | Aplicaciones agrupadas por categorías, con nombre visible e icono propio | Hecho |
-| Botón en forma de círculo que sale del borde, y ventana con mosaicos de cuatro en cuatro | Hecho |
+| Botón en forma de círculo que sale del borde y se abre hasta ser la ventana, con mosaicos de cuatro en cuatro | Hecho |
 
 El porqué de cada cosa está en [requisitos](docs/requisitos.md) y [decisiones](docs/decisiones.md), y el avance en el [plan](docs/plan.md).
 

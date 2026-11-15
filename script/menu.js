@@ -7,16 +7,23 @@
 (function () {
   'use strict';
 
-  // El botón es un círculo alrededor del icono que sale del borde, unido a
-  // él por dos curvas que acaban tangentes al borde.
+  // El botón es un círculo alrededor del icono, separado un poco del borde y
+  // unido a él por dos curvas que salen tangentes al borde y llegan tangentes
+  // al círculo en sus extremos a lo largo del borde. Al abrirse, el círculo
+  // crece hasta ser la ventana, unida al borde de la misma forma.
   const RADIUS = 22; // radio del círculo
   const LIFT = 4; // separación entre el círculo y el borde
-  const FILLET = 12; // radio de las curvas que lo unen al borde
-  const DEPTH = LIFT + 2 * RADIUS; // cuánto sale del borde
-  // Largo junto al borde: donde las curvas tocan el borde.
-  const SIZE = 2 * Math.ceil(Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(LIFT + RADIUS - FILLET, 2)));
+  const CENTER = LIFT + RADIUS; // distancia del centro del círculo al borde
+  const SPREAD = 14; // cuánto se abren las curvas a lo largo del borde
+  const SIZE = 2 * (RADIUS + SPREAD); // largo del botón junto al borde
+  const OPEN_SPREAD = 20;
+  const OPEN_RADIUS = 20; // esquinas de la ventana
+  const HEADER = 52; // alto de la cabecera de la ventana, donde queda la X
   const PANEL_WIDTH = 384; // cuatro mosaicos por fila
-  const GAP = 8; // separación entre el botón y la ventana
+  const MARGIN = 8; // margen mínimo de la ventana con los bordes
+  const KAPPA = 0.5523; // cuarto de elipse con una curva de Bézier
+  const OPEN_MS = 420; // duración de la animación al abrir, en ms
+  const CLOSE_MS = 320;
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
   const DEFAULT_POS = { edge: 'right', offset: 0.5 };
   const EDGES = ['top', 'right', 'bottom', 'left'];
@@ -64,98 +71,107 @@
     return { edge: edge, offset: Math.round(offset * 1000) / 1000 };
   }
 
-  // Esquina superior izquierda del botón para una posición. size es el
-  // largo del botón junto al borde y depth cuánto sale de él.
-  function placement(pos, width, height, size, depth) {
-    const d = depth || size;
-    const along = function (length) {
-      return Math.max(0, length - size) * pos.offset;
-    };
-    switch (pos.edge) {
-      case 'top':
-        return { x: along(width), y: 0 };
-      case 'bottom':
-        return { x: along(width), y: Math.max(0, height - d) };
+  function isVertical(edge) {
+    return edge === 'left' || edge === 'right';
+  }
+
+  // Centro del círculo del botón, en px de la pantalla, para una posición.
+  function buttonCenter(pos, width, height) {
+    const along = (Math.max(0, (isVertical(pos.edge) ? height : width) - SIZE) * pos.offset) + SIZE / 2;
+    return toScreen(pos.edge, CENTER, along, width, height);
+  }
+
+  // De coordenadas del borde (a, distancia al borde; s, posición a lo largo
+  // de él) a px de la pantalla.
+  function toScreen(edge, a, s, width, height) {
+    switch (edge) {
       case 'left':
-        return { x: 0, y: along(height) };
+        return { x: a, y: s };
+      case 'right':
+        return { x: width - a, y: s };
+      case 'top':
+        return { x: s, y: a };
       default:
-        return { x: Math.max(0, width - d), y: along(height) };
+        return { x: s, y: height - a };
     }
   }
 
-  // Ancho y alto del botón pegado a un borde.
-  function buttonBox(edge) {
-    return edge === 'left' || edge === 'right' ? { width: DEPTH, height: SIZE } : { width: SIZE, height: DEPTH };
+  // Forma cerrada: el círculo del botón, centrado en along.
+  function closedShape(along) {
+    return { depth: 2 * RADIUS, s0: along - RADIUS, s1: along + RADIUS, r: RADIUS, spread: SPREAD };
   }
 
-  // Esquina superior izquierda de la ventana, junto al botón y dentro de la
-  // pantalla.
-  function panelPlacement(pos, button, panelWidth, panelHeight, width, height) {
-    const maxX = Math.max(GAP, width - panelWidth - GAP);
-    const maxY = Math.max(GAP, height - panelHeight - GAP);
-    switch (pos.edge) {
-      case 'left':
-        return { x: clamp(button.x + DEPTH + GAP, GAP, maxX), y: clamp(button.y, GAP, maxY) };
-      case 'top':
-        return { x: clamp(button.x, GAP, maxX), y: clamp(button.y + DEPTH + GAP, GAP, maxY) };
-      case 'bottom':
-        return { x: clamp(button.x, GAP, maxX), y: clamp(button.y - panelHeight - GAP, GAP, maxY) };
-      default:
-        return { x: clamp(button.x - panelWidth - GAP, GAP, maxX), y: clamp(button.y, GAP, maxY) };
-    }
+  // Forma abierta: la ventana junto al borde, con el botón a la altura de la
+  // cabecera si cabe. contentWidth y contentHeight son el tamaño que pide el
+  // contenido; se recortan para que quepa en la pantalla.
+  function openShape(edge, along, width, height, contentWidth, contentHeight) {
+    const vertical = isVertical(edge);
+    const viewAlong = vertical ? height : width;
+    const viewDepth = vertical ? width : height;
+    const maxAlong = Math.max(2 * OPEN_RADIUS, viewAlong - 2 * (OPEN_SPREAD + MARGIN));
+    const maxDepth = Math.max(2 * OPEN_RADIUS, viewDepth - LIFT - MARGIN);
+    const size = Math.min(vertical ? contentHeight : contentWidth, maxAlong);
+    const depth = Math.min(vertical ? contentWidth : contentHeight, maxDepth);
+    const low = OPEN_SPREAD + MARGIN;
+    const s0 = Math.max(low, Math.min(viewAlong - size - low, along - HEADER / 2));
+    return { depth: depth, s0: s0, s1: s0 + size, r: OPEN_RADIUS, spread: OPEN_SPREAD };
   }
 
-  // Silueta del botón pegado a un borde, como trazado SVG en px del botón, y
-  // centro del círculo. Con attached falso, solo el círculo: así se ve
-  // mientras se arrastra.
-  function buttonShape(edge, attached) {
-    const box = buttonBox(edge);
-    const mid = SIZE / 2;
-    const c = LIFT + RADIUS; // distancia del centro al borde
-    // Puntos en coordenadas del borde izquierdo: a es la distancia al borde
-    // y s la posición a lo largo de él. Los demás bordes son giros o
-    // reflejos; un reflejo invierte el sentido de los arcos.
-    const map = function (a, s) {
-      switch (edge) {
-        case 'left':
-          return [a, s];
-        case 'right':
-          return [DEPTH - a, s];
-        case 'top':
-          return [s, a];
-        default:
-          return [s, DEPTH - a];
-      }
-    };
-    const flip = edge === 'right' || edge === 'top';
-    const r = function (v) {
+  function mix(a, b, t) {
+    const r = {};
+    Object.keys(a).forEach(function (k) {
+      r[k] = a[k] + (b[k] - a[k]) * t;
+    });
+    return r;
+  }
+
+  // Contorno de una forma como trazado SVG en px de la pantalla: un
+  // rectángulo redondeado a LIFT del borde, de fondo depth, entre s0 y s1 a
+  // lo largo del borde y con esquinas de radio r, unido al borde por dos
+  // cuartos de elipse. Cada uno sale tangente al borde a spread del
+  // rectángulo y llega tangente a su lado donde empieza el tramo recto. Con
+  // fondo y largo 2r es el círculo del botón, y las curvas llegan a sus
+  // extremos a lo largo del borde.
+  function outline(edge, width, height, g) {
+    const flip = edge === 'right' || edge === 'top'; // reflejos: los arcos van al revés
+    const round = function (v) {
       return Math.round(v * 100) / 100;
     };
     const pt = function (a, s) {
-      const q = map(a, s);
-      return r(q[0]) + ' ' + r(q[1]);
+      const p = toScreen(edge, a, s, width, height);
+      return round(p.x) + ' ' + round(p.y);
     };
-    const arc = function (radius, large, sweep, a, s) {
-      return ' A ' + radius + ' ' + radius + ' 0 ' + large + ' ' + (flip ? 1 - sweep : sweep) + ' ' + pt(a, s);
+    const arc = function (a, s) {
+      return ' A ' + round(g.r) + ' ' + round(g.r) + ' 0 0 ' + (flip ? 0 : 1) + ' ' + pt(a, s);
     };
-    const center = map(c, mid);
-    let d;
-    if (attached) {
-      // Centro de cada curva: a FILLET del borde, tocando el círculo.
-      const reach = Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(c - FILLET, 2));
-      const k = RADIUS / (RADIUS + FILLET);
-      const ta = c + (FILLET - c) * k;
-      const ts = reach * k;
-      d =
-        'M ' + pt(0, mid - reach) +
-        arc(FILLET, 0, 0, ta, mid - ts) +
-        arc(RADIUS, 1, 1, ta, mid + ts) +
-        arc(FILLET, 0, 0, 0, mid + reach) +
-        ' Z';
-    } else {
-      d = 'M ' + pt(c - RADIUS, mid) + arc(RADIUS, 1, 0, c + RADIUS, mid) + arc(RADIUS, 1, 0, c - RADIUS, mid) + ' Z';
-    }
-    return { width: box.width, height: box.height, d: d, cx: center[0], cy: center[1] };
+    const near = LIFT + g.r;
+    const far = LIFT + g.depth;
+    const sp = g.spread;
+    return (
+      'M ' + pt(0, g.s0 - sp) +
+      ' C ' + pt(0, g.s0 - sp + sp * KAPPA) + ', ' + pt(near * (1 - KAPPA), g.s0) + ', ' + pt(near, g.s0) +
+      ' L ' + pt(far - g.r, g.s0) + arc(far, g.s0 + g.r) +
+      ' L ' + pt(far, g.s1 - g.r) + arc(far - g.r, g.s1) +
+      ' L ' + pt(near, g.s1) +
+      ' C ' + pt(near * (1 - KAPPA), g.s1) + ', ' + pt(0, g.s1 + sp - sp * KAPPA) + ', ' + pt(0, g.s1 + sp) +
+      ' Z'
+    );
+  }
+
+  // Rectángulo de una forma en px de la pantalla.
+  function shapeRect(edge, width, height, g) {
+    const p = toScreen(edge, LIFT, g.s0, width, height);
+    const q = toScreen(edge, LIFT + g.depth, g.s1, width, height);
+    return {
+      x: Math.min(p.x, q.x),
+      y: Math.min(p.y, q.y),
+      width: Math.abs(q.x - p.x),
+      height: Math.abs(q.y - p.y),
+    };
+  }
+
+  function easeInOut(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
   // Dirección de una aplicación con el esquema y el puerto de la página.
@@ -231,53 +247,63 @@
   const CSS = `
     :host { all: initial; }
     * { box-sizing: border-box; }
-    .button, .panel {
-      --bg: #f6f7f9; --surface: #ffffff; --fg: #1d2129; --muted: #6b7280;
-      --line: #d1d5db; --tile: #eceef2; --accent: #2563eb;
+    .layer, .button, .panel {
+      --bg: #ffffff; --fg: #1d2129; --muted: #6b7280; --hover: #eef0f3;
+      --tile: #eceef2; --accent: #2563eb;
       font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: var(--fg);
     }
     @media (prefers-color-scheme: dark) {
-      .button, .panel {
-        --bg: #14161a; --surface: #1d2026; --fg: #e6e8eb; --muted: #9aa1ab;
-        --line: #2f343d; --tile: #2a2e36; --accent: #6b9bff;
+      .layer, .button, .panel {
+        --bg: #1d2026; --fg: #e6e8eb; --muted: #9aa1ab; --hover: #2a2e36;
+        --tile: #2a2e36; --accent: #6b9bff;
       }
     }
+    .layer {
+      position: fixed; left: 0; top: 0; overflow: visible; pointer-events: none;
+      filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.35));
+    }
+    .shape { fill: var(--bg); }
     .button {
-      position: fixed; display: block; margin: 0; padding: 0; border: 0; background: none;
+      position: fixed; width: ${2 * RADIUS}px; height: ${2 * RADIUS}px; margin: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 0; border-radius: 50%; background: none; color: var(--fg);
       cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent; opacity: 0.9; transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .button:hover, .button:focus-visible, .button[aria-expanded="true"] { opacity: 1; }
+    .button[aria-expanded="true"] { cursor: pointer; }
     .button:focus { outline: none; }
-    .button.dragging { cursor: grabbing; opacity: 1; transition: none; }
-    .button svg {
-      display: block; overflow: visible; pointer-events: none;
-      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+    .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 0; }
+    .button.dragging { cursor: grabbing; }
+    .button svg { width: 22px; height: 22px; overflow: visible; pointer-events: none; }
+    .dots, .cross {
+      transform-box: view-box; transform-origin: 12px 12px;
+      transition: transform ${OPEN_MS}ms cubic-bezier(0.65, 0, 0.35, 1), opacity ${OPEN_MS}ms;
     }
-    .shape { fill: var(--surface); }
-    .glyph { fill: var(--fg); }
-    .button:focus-visible .shape { stroke: var(--accent); stroke-width: 3; }
-    .button[aria-expanded="true"] .shape { fill: var(--accent); }
-    .button[aria-expanded="true"] .glyph { fill: #ffffff; }
+    .dots { fill: currentColor; }
+    .cross { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; opacity: 0; transform: rotate(-90deg) scale(0.4); }
+    .button[aria-expanded="true"] .dots { opacity: 0; transform: rotate(90deg) scale(0.4); }
+    .button[aria-expanded="true"] .cross { opacity: 1; transform: none; }
     .panel {
-      position: fixed; width: min(${PANEL_WIDTH}px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 16px));
-      display: flex; flex-direction: column; margin: 0; padding: 0;
-      background: var(--bg); border: 1px solid var(--line); border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); overflow: hidden;
+      position: fixed; display: flex; flex-direction: column; margin: 0; padding: 0;
+      overflow: hidden; border-radius: ${OPEN_RADIUS}px;
     }
     .panel[hidden] { display: none; }
+    .panel[data-edge="bottom"] { flex-direction: column-reverse; }
     .title {
-      margin: 0; padding: 14px 16px 4px; font-size: 12px; font-weight: 600;
-      letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+      flex: none; display: flex; align-items: center; height: ${HEADER}px; margin: 0; padding: 0 16px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
     }
+    .panel[data-edge="left"] .title, .panel[data-edge="top"] .title, .panel[data-edge="bottom"] .title { padding-left: ${HEADER}px; }
+    .panel[data-edge="right"] .title { padding-right: ${HEADER}px; }
     .list { overflow-y: auto; padding: 0 10px 10px; }
+    .panel[data-edge="bottom"] .list { padding: 10px 10px 0; }
     ul {
       list-style: none; margin: 0; padding: 0;
       display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
     }
     .group {
-      margin: 12px 6px 6px; font-size: 11px; font-weight: 600;
+      margin: 8px 6px 6px; font-size: 11px; font-weight: 600;
       letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
     }
     a {
@@ -285,7 +311,7 @@
       padding: 10px 4px 8px; border-radius: 14px; color: var(--fg);
       text-decoration: none; text-align: center;
     }
-    a:hover { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.13); }
+    a:hover { background: var(--hover); }
     a:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
     a[aria-current="page"] .icon { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
     a[aria-current="page"] .name { font-weight: 600; }
@@ -299,35 +325,34 @@
       max-width: 100%; font-size: 12px; line-height: 1.25; overflow-wrap: anywhere;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
-    @media print { .button, .panel { display: none; } }
-    @media (prefers-reduced-motion: reduce) { .button { transition: none; } }
+    @media print { .layer, .button, .panel { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .dots, .cross { transition: none; } }
   `;
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // Dibujo del botón: la silueta y el icono de cuadrícula, creados con el
-  // DOM y no con innerHTML para que funcione en páginas con Trusted Types.
-  function buttonDrawing() {
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('aria-hidden', 'true');
-    const shape = document.createElementNS(SVG_NS, 'path');
-    shape.setAttribute('class', 'shape');
-    const glyph = document.createElementNS(SVG_NS, 'g');
-    glyph.setAttribute('class', 'glyph');
+  function svgElement(name, attributes) {
+    const el = document.createElementNS(SVG_NS, name);
+    Object.keys(attributes).forEach(function (k) {
+      el.setAttribute(k, attributes[k]);
+    });
+    return el;
+  }
+
+  // Icono del botón: la cuadrícula, que al abrir gira y se convierte en una
+  // X. Creado con el DOM y no con innerHTML para que funcione en páginas con
+  // Trusted Types.
+  function buttonIcon() {
+    const svg = svgElement('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' });
+    const dots = svgElement('g', { class: 'dots' });
     [4, 10, 16].forEach(function (y) {
       [4, 10, 16].forEach(function (x) {
-        const rect = document.createElementNS(SVG_NS, 'rect');
-        rect.setAttribute('x', x);
-        rect.setAttribute('y', y);
-        rect.setAttribute('width', 4);
-        rect.setAttribute('height', 4);
-        rect.setAttribute('rx', 1);
-        glyph.appendChild(rect);
+        dots.appendChild(svgElement('rect', { x: x, y: y, width: 4, height: 4, rx: 1 }));
       });
     });
-    svg.appendChild(shape);
-    svg.appendChild(glyph);
-    return { svg: svg, shape: shape, glyph: glyph };
+    svg.appendChild(dots);
+    svg.appendChild(svgElement('path', { class: 'cross', d: 'M6 6 L18 18 M18 6 L6 18' }));
+    return svg;
   }
 
   // Hojas de estilo construidas: las CSP que prohíben estilos en línea no
@@ -398,6 +423,12 @@
     const shadow = host.attachShadow({ mode: 'closed' });
     applyStyles(shadow);
 
+    // La forma del botón y de la ventana, dibujada en una capa del tamaño de
+    // la pantalla que no recibe pulsaciones.
+    const layer = svgElement('svg', { class: 'layer', 'aria-hidden': 'true' });
+    const shape = svgElement('path', { class: 'shape' });
+    layer.appendChild(shape);
+
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button';
@@ -405,8 +436,7 @@
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'panel');
-    const drawing = buttonDrawing();
-    button.appendChild(drawing.svg);
+    button.appendChild(buttonIcon());
 
     const panel = document.createElement('div');
     panel.className = 'panel';
@@ -422,82 +452,169 @@
     panel.appendChild(title);
     panel.appendChild(list);
 
-    shadow.appendChild(button);
+    shadow.appendChild(layer);
     shadow.appendChild(panel);
+    shadow.appendChild(button);
 
     let pos = parsePos(data.position);
-    let point = { x: 0, y: 0 };
     let loaded = false;
+    let opened = false;
+    let progress = 0; // 0 cerrado, 1 abierto
+    let frame = 0;
+    let closedGeom = null;
+    let openGeom = null;
+    let dragPoint = null; // centro del círculo mientras se arrastra
 
-    function moveButton(x, y) {
-      point = { x: x, y: y };
-      button.style.left = x + 'px';
-      button.style.top = y + 'px';
+    function reducedMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
-    function drawButton(attached) {
-      const s = buttonShape(pos.edge, attached);
-      button.style.width = s.width + 'px';
-      button.style.height = s.height + 'px';
-      drawing.svg.setAttribute('width', s.width);
-      drawing.svg.setAttribute('height', s.height);
-      drawing.svg.setAttribute('viewBox', '0 0 ' + s.width + ' ' + s.height);
-      drawing.shape.setAttribute('d', s.d);
-      // Icono de 24 a 22 px, en el centro del círculo.
-      drawing.glyph.setAttribute('transform', 'translate(' + (s.cx - 11) + ' ' + (s.cy - 11) + ') scale(' + 22 / 24 + ')');
+    function along(p) {
+      return isVertical(pos.edge) ? p.y : p.x;
     }
 
-    function placeButton() {
+    function fillList() {
+      if (loaded) return;
+      groupApps(apps, data.categories).forEach(function (group, i) {
+        const ul = document.createElement('ul');
+        if (group.name) {
+          const heading = document.createElement('p');
+          heading.className = 'group';
+          heading.id = 'grupo-' + i;
+          heading.textContent = group.name;
+          ul.setAttribute('aria-labelledby', heading.id);
+          list.appendChild(heading);
+        }
+        group.apps.forEach(function (app) {
+          ul.appendChild(appItem(app));
+        });
+        list.appendChild(ul);
+      });
+      loaded = true;
+    }
+
+    // Formas cerrada y abierta para la posición y la pantalla actuales. La
+    // abierta mide el contenido con el ancho que tendrá la ventana.
+    function computeShapes() {
       const vp = viewport();
-      const p = placement(pos, vp.width, vp.height, SIZE, DEPTH);
+      closedGeom = closedShape(along(buttonCenter(pos, vp.width, vp.height)));
+      if (!loaded) return;
+      const vertical = isVertical(pos.edge);
+      const maxWidth = vertical ? vp.width - LIFT - MARGIN : vp.width - 2 * (OPEN_SPREAD + MARGIN);
+      const width = Math.min(PANEL_WIDTH, maxWidth);
+      const hidden = panel.hidden;
+      panel.hidden = false;
+      panel.style.visibility = 'hidden';
+      panel.style.width = width + 'px';
+      panel.style.height = 'auto';
+      const height = panel.scrollHeight;
+      panel.style.visibility = '';
+      panel.hidden = hidden;
+      openGeom = openShape(pos.edge, closedGeom.s0 + RADIUS, vp.width, vp.height, width, height);
+    }
+
+    // Pinta el estado intermedio según progress.
+    function draw() {
+      const vp = viewport();
+      layer.setAttribute('width', vp.width);
+      layer.setAttribute('height', vp.height);
+      layer.setAttribute('viewBox', '0 0 ' + vp.width + ' ' + vp.height);
+      let center;
+      if (dragPoint) {
+        center = dragPoint;
+        const r = RADIUS;
+        shape.setAttribute(
+          'd',
+          'M ' + (center.x - r) + ' ' + center.y + ' A ' + r + ' ' + r + ' 0 1 0 ' + (center.x + r) + ' ' + center.y +
+            ' A ' + r + ' ' + r + ' 0 1 0 ' + (center.x - r) + ' ' + center.y + ' Z'
+        );
+      } else {
+        const t = easeInOut(progress);
+        const g = openGeom && progress > 0 ? mix(closedGeom, openGeom, t) : closedGeom;
+        shape.setAttribute('d', outline(pos.edge, vp.width, vp.height, g));
+        // El botón va del centro del círculo a la esquina de la cabecera.
+        center = toScreen(pos.edge, CENTER, g.s0 + (openGeom && progress > 0 ? HEADER / 2 + (RADIUS - HEADER / 2) * (1 - t) : RADIUS), vp.width, vp.height);
+        if (openGeom && progress > 0) {
+          const rect = shapeRect(pos.edge, vp.width, vp.height, openGeom);
+          panel.style.left = rect.x + 'px';
+          panel.style.top = rect.y + 'px';
+          panel.style.width = rect.width + 'px';
+          panel.style.height = rect.height + 'px';
+          // El contenido aparece al final, cuando ya casi hay sitio.
+          const fade = Math.max(0, Math.min(1, (progress - 0.55) / 0.45));
+          panel.style.opacity = fade;
+          panel.style.pointerEvents = progress === 1 ? '' : 'none';
+        }
+      }
+      button.style.left = center.x - RADIUS + 'px';
+      button.style.top = center.y - RADIUS + 'px';
+    }
+
+    function animateTo(to, done) {
+      cancelAnimationFrame(frame);
+      const from = progress;
+      const duration = (to > from ? OPEN_MS : CLOSE_MS) * Math.abs(to - from);
+      if (reducedMotion() || duration <= 0) {
+        progress = to;
+        draw();
+        if (done) done();
+        return;
+      }
+      const start = performance.now();
+      const step = function (now) {
+        const t = Math.min(1, (now - start) / duration);
+        progress = from + (to - from) * t;
+        draw();
+        if (t < 1) frame = requestAnimationFrame(step);
+        else if (done) done();
+      };
+      frame = requestAnimationFrame(step);
+    }
+
+    function place() {
+      computeShapes();
       button.dataset.edge = pos.edge;
-      drawButton(true);
-      moveButton(p.x, p.y);
-    }
-
-    function placePanel() {
-      const vp = viewport();
-      const rect = panel.getBoundingClientRect();
-      const p = panelPlacement(pos, point, rect.width, rect.height, vp.width, vp.height);
-      panel.style.left = p.x + 'px';
-      panel.style.top = p.y + 'px';
+      panel.dataset.edge = pos.edge;
+      draw();
     }
 
     function isOpen() {
-      return !panel.hidden;
+      return opened;
     }
 
     function open() {
-      if (!loaded) {
-        groupApps(apps, data.categories).forEach(function (group, i) {
-          const ul = document.createElement('ul');
-          if (group.name) {
-            const heading = document.createElement('p');
-            heading.className = 'group';
-            heading.id = 'grupo-' + i;
-            heading.textContent = group.name;
-            ul.setAttribute('aria-labelledby', heading.id);
-            list.appendChild(heading);
-          }
-          group.apps.forEach(function (app) {
-            ul.appendChild(appItem(app));
-          });
-          list.appendChild(ul);
-        });
-        loaded = true;
-      }
+      fillList();
+      opened = true;
+      computeShapes();
       panel.hidden = false;
+      panel.style.opacity = 0;
       button.setAttribute('aria-expanded', 'true');
-      placePanel();
-      const target = list.querySelector('a[aria-current="page"]') || list.querySelector('a');
-      if (target) target.focus({ preventScroll: true });
+      button.setAttribute('aria-label', 'Cerrar aplicaciones');
+      animateTo(1, function () {
+        if (!opened) return;
+        const target = list.querySelector('a[aria-current="page"]') || list.querySelector('a');
+        if (target) target.focus({ preventScroll: true });
+      });
     }
 
-    function close(focusButton) {
+    function close(focusButton, instant) {
       if (!isOpen()) return;
-      panel.hidden = true;
+      opened = false;
       button.setAttribute('aria-expanded', 'false');
-      if (focusButton) button.focus();
+      button.setAttribute('aria-label', 'Aplicaciones');
+      if (focusButton) button.focus({ preventScroll: true });
+      panel.style.pointerEvents = 'none';
+      const hide = function () {
+        if (!opened) panel.hidden = true;
+      };
+      if (instant) {
+        cancelAnimationFrame(frame);
+        progress = 0;
+        hide();
+        draw();
+      } else {
+        animateTo(0, hide);
+      }
     }
 
     // Arrastre con ratón o dedo. Un movimiento corto cuenta como pulsación.
@@ -505,8 +622,9 @@
     let suppressClickUntil = 0;
 
     button.addEventListener('pointerdown', function (e) {
-      if (e.button !== 0) return;
-      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, bx: point.x, by: point.y, moving: false };
+      if (e.button !== 0 || isOpen()) return;
+      const r = button.getBoundingClientRect();
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, cx: r.left + RADIUS, cy: r.top + RADIUS, moving: false };
       button.setPointerCapture(e.pointerId);
     });
 
@@ -518,12 +636,13 @@
         if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
         drag.moving = true;
         button.classList.add('dragging');
-        drawButton(false);
-        close(false);
       }
       const vp = viewport();
-      const box = buttonBox(pos.edge);
-      moveButton(clamp(drag.bx + dx, 0, vp.width - box.width), clamp(drag.by + dy, 0, vp.height - box.height));
+      dragPoint = {
+        x: clamp(drag.cx + dx, RADIUS, vp.width - RADIUS),
+        y: clamp(drag.cy + dy, RADIUS, vp.height - RADIUS),
+      };
+      draw();
     });
 
     function endDrag(e, commit) {
@@ -533,13 +652,13 @@
       button.classList.remove('dragging');
       if (!moved) return;
       suppressClickUntil = performance.now() + 400;
-      if (commit) {
+      if (commit && dragPoint) {
         const vp = viewport();
-        const box = buttonBox(pos.edge);
-        pos = snap(point.x + box.width / 2, point.y + box.height / 2, vp.width, vp.height, SIZE);
+        pos = snap(dragPoint.x, dragPoint.y, vp.width, vp.height, SIZE);
         savePosition(formatPos(pos));
       }
-      placeButton();
+      dragPoint = null;
+      place();
     }
 
     button.addEventListener('pointerup', function (e) {
@@ -571,8 +690,7 @@
     );
 
     window.addEventListener('resize', function () {
-      placeButton();
-      if (isOpen()) placePanel();
+      place();
     });
 
     // Otra pestaña o dispositivo pudo mover el botón mientras esta estaba
@@ -583,14 +701,14 @@
         .then(function (fresh) {
           const saved = parsePos(fresh.position);
           if (drag || formatPos(saved) === formatPos(pos)) return;
+          close(false, true);
           pos = saved;
-          placeButton();
-          if (isOpen()) placePanel();
+          place();
         })
         .catch(function () {});
     });
 
-    placeButton();
+    place();
     document.documentElement.appendChild(host);
   }
 
@@ -611,12 +729,13 @@
       parsePos: parsePos,
       formatPos: formatPos,
       snap: snap,
-      placement: placement,
-      panelPlacement: panelPlacement,
+      buttonCenter: buttonCenter,
+      closedShape: closedShape,
+      openShape: openShape,
+      outline: outline,
       appUrl: appUrl,
       appList: appList,
       groupApps: groupApps,
-      buttonShape: buttonShape,
     });
     return;
   }
