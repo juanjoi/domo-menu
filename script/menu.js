@@ -15,7 +15,7 @@
   const DEPTH = LIFT + 2 * RADIUS; // cuánto sale del borde
   // Largo junto al borde: donde las curvas tocan el borde.
   const SIZE = 2 * Math.ceil(Math.sqrt(Math.pow(RADIUS + FILLET, 2) - Math.pow(LIFT + RADIUS - FILLET, 2)));
-  const PANEL_WIDTH = 304; // tres mosaicos por fila
+  const PANEL_WIDTH = 384; // cuatro mosaicos por fila
   const GAP = 8; // separación entre el botón y la ventana
   const DRAG_THRESHOLD = 5; // px antes de considerar que es un arrastre
   const DEFAULT_POS = { edge: 'right', offset: 0.5 };
@@ -274,7 +274,7 @@
     .list { overflow-y: auto; padding: 0 10px 10px; }
     ul {
       list-style: none; margin: 0; padding: 0;
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
     }
     .group {
       margin: 12px 6px 6px; font-size: 11px; font-weight: 600;
